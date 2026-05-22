@@ -27,7 +27,7 @@ export default async function StaffPage() {
       />
       <main className="flex-1 p-6 space-y-4">
         <p className="text-sm text-gray-500">{staff?.length ?? 0} accounts</p>
-        <StaffTable staff={staff ?? []} currentUserId={user!.id} />
+        <StaffTable staff={staff ?? []} currentUserId={user!.id} currentUserEmail={user!.email ?? ''} />
       </main>
     </>
   )
