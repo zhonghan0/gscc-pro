@@ -85,7 +85,7 @@ function NavLink({ href, label, icon: Icon, collapsed, active, count }: {
   )
 }
 
-export function Sidebar({ counts }: { counts: { residents: number; caregivers: number; localWorkers: number } }) {
+export function Sidebar({ counts = { residents: 0, caregivers: 0, localWorkers: 0 } }: { counts?: { residents: number; caregivers: number; localWorkers: number } }) {
   const pathname = usePathname()
   const router = useRouter()
   const { profile, isAdmin } = useUser()
