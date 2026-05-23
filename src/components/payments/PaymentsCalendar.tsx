@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { X, Pencil, ArrowLeftRight, Plus } from 'lucide-react'
+import { X, Pencil, ArrowLeftRight, Plus, CheckCircle2, AlertCircle } from 'lucide-react'
 
 interface ResidentRow {
   id: string
@@ -21,11 +21,13 @@ interface PaymentRow {
   for_month: string | null
   amount: number
   payment_method: string
+  full_payment: boolean | null
 }
 
 interface Props {
   residents: ResidentRow[]
   payments: PaymentRow[]
+  extraChargesMap: Record<string, Record<string, number>>
   highlightId?: string | null
 }
 
@@ -67,7 +69,27 @@ function fmtFull(dateStr: string): string {
 
 const GRID_ORDER_KEY = 'payments_grid_reversed'
 
-export function PaymentsCalendar({ residents, payments, highlightId }: Props) {
+/** Determine full-payment status for a cell.
+ * Returns 'full' | 'partial' | 'unknown'
+ * - full: manually marked OR paid >= expected
+ * - partial: paid < expected (and expected is known)
+ * - unknown: no fee/charges info to compare
+ */
+function paymentStatus(
+  payment: PaymentRow,
+  resident: ResidentRow,
+  month: string,
+  extraChargesMap: Record<string, Record<string, number>>,
+): 'full' | 'partial' | 'unknown' {
+  if (payment.full_payment === true) return 'full'
+  const fee = resident.fee ?? null
+  if (fee === null) return 'unknown'
+  const extras = extraChargesMap[resident.id]?.[month] ?? 0
+  const expected = fee + extras
+  return payment.amount >= expected ? 'full' : 'partial'
+}
+
+export function PaymentsCalendar({ residents, payments, extraChargesMap, highlightId }: Props) {
   const router = useRouter()
   const tableRef = useRef<HTMLDivElement>(null)
   const [activeHighlight, setActiveHighlight] = useState(highlightId ?? null)
@@ -108,7 +130,7 @@ export function PaymentsCalendar({ residents, payments, highlightId }: Props) {
   // currentMonth stays as today regardless of the future columns added
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [selected, setSelected] = useState<{ payment: PaymentRow; resident: ResidentRow; isLate: boolean } | null>(null)
+  const [selected, setSelected] = useState<{ payment: PaymentRow; resident: ResidentRow; isLate: boolean; status: 'full' | 'partial' | 'unknown' } | null>(null)
 
   // Sort residents by name
   const sorted = [...residents].sort((a, b) =>
@@ -220,20 +242,27 @@ export function PaymentsCalendar({ residents, payments, highlightId }: Props) {
                       // Late = paid in a month AFTER the billing month; same month = on time
                       const isLate = paymentYM > month
                       const isNew = payment.id === activeHighlight
+                      const status = paymentStatus(payment, resident, month, extraChargesMap)
                       const cellClass = isLate
                         ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
                         : 'bg-green-100 text-green-800 hover:bg-green-200'
                       return (
                         <td key={month} className="w-14 px-0.5 py-1 text-center">
                           <button
-                            onClick={() => setSelected({ payment, resident, isLate })}
+                            onClick={() => setSelected({ payment, resident, isLate, status })}
                             data-highlight={isNew ? 'true' : undefined}
                             className={`w-full rounded py-1 px-0.5 transition-colors cursor-pointer
                               ${cellClass}
                               ${isNew ? 'ring-2 ring-blue-500 font-extrabold shadow-sm' : 'font-semibold'}`}
                             title={`${resident.full_name} — ${fmtFull(payment.payment_date)}`}
                           >
-                            {fmtCell(payment.payment_date)}
+                            <span className="block leading-tight">{fmtCell(payment.payment_date)}</span>
+                            {status === 'full' && (
+                              <CheckCircle2 className="w-2.5 h-2.5 mx-auto mt-0.5 text-green-600 opacity-80" />
+                            )}
+                            {status === 'partial' && (
+                              <AlertCircle className="w-2.5 h-2.5 mx-auto mt-0.5 text-orange-500 opacity-90" />
+                            )}
                           </button>
                         </td>
                       )
@@ -312,13 +341,25 @@ export function PaymentsCalendar({ residents, payments, highlightId }: Props) {
           <span className="inline-block w-3 h-3 rounded-sm bg-red-50 border border-red-200" />
           Unpaid
         </span>
+        <span className="flex items-center gap-1.5">
+          <CheckCircle2 className="w-3 h-3 text-green-600" />
+          Full paid
+        </span>
+        <span className="flex items-center gap-1.5">
+          <AlertCircle className="w-3 h-3 text-orange-500" />
+          Partial
+        </span>
       </div>
 
       {/* Detail popover */}
       {selected && (() => {
-        const { payment, resident, isLate } = selected
-        const statusColor = isLate ? 'text-amber-700 bg-amber-50' : 'text-green-700 bg-green-50'
-        const statusLabel = isLate ? 'Late' : 'On time'
+        const { payment, resident, isLate, status } = selected
+        const billingMonth = payment.for_month ?? payment.payment_date.slice(0, 7)
+        const extras = extraChargesMap[resident.id]?.[billingMonth] ?? 0
+        const fee = resident.fee ?? null
+        const expected = fee !== null ? fee + extras : null
+        const timingColor = isLate ? 'text-amber-700 bg-amber-50' : 'text-green-700 bg-green-50'
+        const timingLabel = isLate ? 'Late' : 'On time'
         const forMonth = payment.for_month
           ? fmtMonth(payment.for_month)
           : fmtMonth(payment.payment_date.slice(0, 7))
@@ -350,18 +391,42 @@ export function PaymentsCalendar({ residents, payments, highlightId }: Props) {
                   <span className="font-medium text-gray-900">{fmtFull(payment.payment_date)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Amount</span>
+                  <span className="text-gray-500">Amount paid</span>
                   <span className="font-semibold text-green-700">
                     RM {Number(payment.amount).toLocaleString('en-MY', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
+                {expected !== null && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Expected</span>
+                    <span className="text-gray-700">
+                      RM {expected.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-500">Method</span>
                   <span className="text-gray-800">{METHOD_LABELS[payment.payment_method] ?? payment.payment_method}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Status</span>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
+                  <span className="text-gray-500">Timing</span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${timingColor}`}>{timingLabel}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Payment</span>
+                  {status === 'full' && (
+                    <span className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="w-3 h-3" /> Full paid
+                    </span>
+                  )}
+                  {status === 'partial' && (
+                    <span className="flex items-center gap-1 text-xs font-medium text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full">
+                      <AlertCircle className="w-3 h-3" /> Partial
+                    </span>
+                  )}
+                  {status === 'unknown' && (
+                    <span className="text-xs text-gray-400">—</span>
+                  )}
                 </div>
               </div>
 

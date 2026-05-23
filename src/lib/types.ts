@@ -341,6 +341,7 @@ export type Database = {
           description: string | null
           notes: string | null
           for_month: string | null
+          full_payment: boolean | null
           source: string
           bank_import_id: string | null
           txn_key: string | null
@@ -358,6 +359,7 @@ export type Database = {
           description?: string | null
           notes?: string | null
           for_month?: string | null
+          full_payment?: boolean | null
           source?: string
           bank_import_id?: string | null
           txn_key?: string | null
@@ -375,6 +377,7 @@ export type Database = {
           description?: string | null
           notes?: string | null
           for_month?: string | null
+          full_payment?: boolean | null
           source?: string
           bank_import_id?: string | null
           txn_key?: string | null

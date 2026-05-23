@@ -10,10 +10,12 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   if (!user) redirect('/login')
 
   const [
+    { data: profile },
     { count: residentCount },
     { count: caregiverCount },
     { count: localWorkerCount },
   ] = await Promise.all([
+    supabase.from('profiles').select('full_name, role').eq('id', user.id).single(),
     supabase.from('residents').select('*', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('workers').select('*', { count: 'exact', head: true })
       .eq('worker_type', 'foreign').eq('status', 'active').not('passport_permit_date', 'is', null),
@@ -28,10 +30,10 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider isAdmin={profile?.role === 'admin'} profile={profile} counts={counts}>
       <div className="flex min-h-screen bg-gray-50">
         <div className="hidden lg:flex flex-shrink-0">
-          <Sidebar counts={counts} />
+          <Sidebar />
         </div>
         <div className="flex-1 flex flex-col min-w-0">
           {children}

@@ -32,7 +32,19 @@ export default async function PaymentsPage({ searchParams }: Props) {
 
   if (!showInactive) residentsQuery.eq('status', 'active')
 
-  const { data: residents } = await residentsQuery
+  const [{ data: residents }, { data: extraChargesRaw }] = await Promise.all([
+    residentsQuery,
+    supabase.from('extra_charges').select('resident_id, billing_month, amount'),
+  ])
+
+  // Build map: residentId → billing_month → total extra charges
+  const extraChargesMap: Record<string, Record<string, number>> = {}
+  for (const ec of extraChargesRaw ?? []) {
+    if (!ec.resident_id || !ec.billing_month) continue
+    if (!extraChargesMap[ec.resident_id]) extraChargesMap[ec.resident_id] = {}
+    extraChargesMap[ec.resident_id][ec.billing_month] =
+      (extraChargesMap[ec.resident_id][ec.billing_month] ?? 0) + ec.amount
+  }
 
   // Build toggle URL preserving current view
   const toggleParams = new URLSearchParams()
@@ -130,7 +142,9 @@ export default async function PaymentsPage({ searchParams }: Props) {
               for_month: p.for_month ?? null,
               amount: p.amount,
               payment_method: p.payment_method,
+              full_payment: p.full_payment ?? null,
             }))}
+            extraChargesMap={extraChargesMap}
             highlightId={highlight}
           />
         ) : (

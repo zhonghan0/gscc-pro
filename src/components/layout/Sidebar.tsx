@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useUser } from '@/hooks/useUser'
 import { useSidebar } from '@/lib/sidebar-context'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -85,11 +84,78 @@ function NavLink({ href, label, icon: Icon, collapsed, active, count }: {
   )
 }
 
-export function Sidebar({ counts = { residents: 0, caregivers: 0, localWorkers: 0 } }: { counts?: { residents: number; caregivers: number; localWorkers: number } }) {
+// Extracted to module level so React never unmounts/remounts it on parent re-render
+function CollapsibleGroup({
+  label, items, open, onToggle, collapsed, isActive, itemCounts,
+}: {
+  label: string
+  items: { href: string; label: string; icon: React.ElementType }[]
+  open: boolean
+  onToggle: () => void
+  collapsed: boolean
+  isActive: (href: string) => boolean
+  itemCounts?: Record<string, number>
+}) {
+  if (collapsed) {
+    return (
+      <>
+        <div className="border-t border-gray-100 mx-2 my-1" />
+        {items.map(({ href, label: itemLabel, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            title={itemLabel}
+            className={cn(
+              'flex items-center justify-center rounded-lg py-2.5 w-full transition-colors',
+              isActive(href) ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            )}
+          >
+            <Icon className="w-4 h-4 flex-shrink-0" />
+          </Link>
+        ))}
+      </>
+    )
+  }
+
+  return (
+    <div className="pt-1">
+      <button
+        onClick={onToggle}
+        className="flex items-center justify-between w-full px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors rounded-md hover:bg-gray-50"
+      >
+        <span>{label}</span>
+        <ChevronDown className={cn(
+          'w-3.5 h-3.5 transition-transform duration-200',
+          open ? 'rotate-0' : '-rotate-90'
+        )} />
+      </button>
+
+      {open && (
+        <div className="mt-1 space-y-1">
+          {items.map(({ href, label: itemLabel, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                isActive(href) ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              )}
+            >
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span>{itemLabel}</span>
+              {itemCounts?.[href] !== undefined && <CountBadge count={itemCounts[href]} />}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { profile, isAdmin } = useUser()
-  const { collapsed, toggle } = useSidebar()
+  const { collapsed, toggle, isAdmin, profile, counts } = useSidebar()
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
@@ -111,71 +177,6 @@ export function Sidebar({ counts = { residents: 0, caregivers: 0, localWorkers: 
 
   const visibleBilling = billingItems.filter(i => !i.adminOnly || isAdmin)
   const visibleOthers  = othersItems.filter(i => !('adminOnly' in i) || isAdmin)
-
-  function CollapsibleGroup({
-    label, items, open, onToggle, counts: itemCounts,
-  }: {
-    label: string
-    items: { href: string; label: string; icon: React.ElementType }[]
-    open: boolean
-    onToggle: () => void
-    counts?: Record<string, number>
-  }) {
-    if (collapsed) {
-      return (
-        <>
-          <div className="border-t border-gray-100 mx-2 my-1" />
-          {items.map(({ href, label: itemLabel, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              title={itemLabel}
-              className={cn(
-                'flex items-center justify-center rounded-lg py-2.5 w-full transition-colors',
-                isActive(href) ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              )}
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-            </Link>
-          ))}
-        </>
-      )
-    }
-
-    return (
-      <div className="pt-1">
-        <button
-          onClick={onToggle}
-          className="flex items-center justify-between w-full px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors rounded-md hover:bg-gray-50"
-        >
-          <span>{label}</span>
-          <ChevronDown className={cn(
-            'w-3.5 h-3.5 transition-transform duration-200',
-            open ? 'rotate-0' : '-rotate-90'
-          )} />
-        </button>
-
-        {open && (
-          <div className="mt-1 space-y-1">
-            {items.map(({ href, label: itemLabel, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                  isActive(href) ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                )}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span>{itemLabel}</span>
-                {itemCounts?.[href] !== undefined && <CountBadge count={itemCounts[href]} />}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
 
   return (
     <aside className={cn(
@@ -238,7 +239,9 @@ export function Sidebar({ counts = { residents: 0, caregivers: 0, localWorkers: 
             items={teamItems}
             open={teamOpen}
             onToggle={() => setTeamOpen(o => !o)}
-            counts={{
+            collapsed={collapsed}
+            isActive={isActive}
+            itemCounts={{
               '/admin/caregivers': counts.caregivers,
               '/admin/local-workers': counts.localWorkers,
             }}
@@ -251,6 +254,8 @@ export function Sidebar({ counts = { residents: 0, caregivers: 0, localWorkers: 
           items={visibleBilling}
           open={billingOpen}
           onToggle={() => setBillingOpen(o => !o)}
+          collapsed={collapsed}
+          isActive={isActive}
         />
 
         {/* Others group (admin only) */}
@@ -260,6 +265,8 @@ export function Sidebar({ counts = { residents: 0, caregivers: 0, localWorkers: 
             items={visibleOthers}
             open={othersOpen}
             onToggle={() => setOthersOpen(o => !o)}
+            collapsed={collapsed}
+            isActive={isActive}
           />
         )}
       </nav>

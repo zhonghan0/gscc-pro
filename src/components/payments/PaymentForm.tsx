@@ -21,6 +21,7 @@ interface PaymentData {
   description: string | null
   notes: string | null
   for_month?: string | null
+  full_payment?: boolean | null
 }
 
 interface ResidentHint {
@@ -35,6 +36,7 @@ interface Props {
   payment?: PaymentData
   residentHints?: Record<string, ResidentHint>
   defaultResidentId?: string
+  expectedAmount?: number | null
 }
 
 const PAYMENT_METHODS = [
@@ -48,7 +50,7 @@ const PAYMENT_METHODS = [
   { value: 'other', label: 'Other' },
 ]
 
-export function PaymentForm({ residents, payment, residentHints, defaultResidentId }: Props) {
+export function PaymentForm({ residents, payment, residentHints, defaultResidentId, expectedAmount }: Props) {
   const router = useRouter()
   const isEdit = !!payment
   const formRef = useRef<HTMLFormElement>(null)
@@ -97,6 +99,7 @@ export function PaymentForm({ residents, payment, residentHints, defaultResident
   const [description, setDescription] = useState(payment?.description ?? '')
   const [notes, setNotes] = useState(payment?.notes ?? '')
 
+  const [fullPayment, setFullPayment] = useState<boolean | null>(payment?.full_payment ?? null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [isDirty, setDirty] = useState(false)
@@ -159,6 +162,7 @@ export function PaymentForm({ residents, payment, residentHints, defaultResident
       description: description || null,
       notes: notes || null,
       for_month: forMonth || null,
+      full_payment: fullPayment,
     }
 
     try {
@@ -283,7 +287,14 @@ export function PaymentForm({ residents, payment, residentHints, defaultResident
 
         {/* Amount */}
         <div>
-          <Label htmlFor="amount">Amount (RM) *</Label>
+          <div className="flex items-center justify-between mb-1">
+            <Label htmlFor="amount">Amount (RM) *</Label>
+            {expectedAmount != null && (
+              <span className="text-xs text-gray-400">
+                Expected: RM {expectedAmount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
+              </span>
+            )}
+          </div>
           <Input
             id="amount"
             type="number"
@@ -294,6 +305,26 @@ export function PaymentForm({ residents, payment, residentHints, defaultResident
             value={amount}
             onChange={e => { setAmount(e.target.value); markDirty() }}
           />
+        </div>
+
+        {/* Full Payment */}
+        <div>
+          <label className="flex items-center gap-3 cursor-pointer select-none group">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={fullPayment === true}
+                onChange={e => { setFullPayment(e.target.checked ? true : null); markDirty() }}
+                className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700">Mark as full payment</span>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Override — mark this payment as fully settled regardless of amount
+              </p>
+            </div>
+          </label>
         </div>
 
         {/* Payment Method */}

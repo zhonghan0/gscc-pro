@@ -24,6 +24,7 @@ export interface PaymentInput {
   description: string | null
   notes: string | null
   for_month?: string | null
+  full_payment?: boolean | null
 }
 
 export async function createPayment(data: PaymentInput) {
@@ -41,6 +42,7 @@ export async function createPayment(data: PaymentInput) {
     description: data.description || null,
     notes: data.notes || null,
     for_month: data.for_month || null,
+    full_payment: data.full_payment ?? null,
     source: 'manual',
     created_by: user.id,
   }).select('id').single()
@@ -66,6 +68,7 @@ export async function updatePayment(id: string, data: Partial<PaymentInput>) {
     description: data.description ?? null,
     notes: data.notes ?? null,
     for_month: data.for_month ?? null,
+    full_payment: data.full_payment ?? null,
   }).eq('id', id)
 
   if (error) throw new Error(error.message)
@@ -86,6 +89,7 @@ export async function deletePayment(id: string) {
   if (error) throw new Error(error.message)
 
   revalidatePath('/payments')
+  redirect('/payments')
 }
 
 export interface BatchPaymentInput {
