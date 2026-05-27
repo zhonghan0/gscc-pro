@@ -19,7 +19,7 @@ export default async function ChargeItemsPage() {
     <>
       <Header title="Charge Items" />
       <main className="flex-1 p-6">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <ChargeItemsManager items={items ?? []} />
         </div>
       </main>

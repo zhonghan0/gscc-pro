@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition, useMemo } from 'react'
+import { useState, useEffect, useRef, useTransition, useMemo } from 'react'
 import { ArrowDownAZ, Layers, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -70,6 +70,21 @@ export function ChargeItemsManager({ items }: { items: ChargeItem[] }) {
   const [addCategory, setAddCategory] = useState<Category>('Others')
   const [error, setError] = useState('')
   const [, startTransition] = useTransition()
+  const [newlyAddedId, setNewlyAddedId] = useState<string | null>(null)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map())
+
+  // Scroll to and highlight the newly added row once it appears in the list
+  useEffect(() => {
+    if (!newlyAddedId) return
+    const el = rowRefs.current.get(newlyAddedId)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setHighlightId(newlyAddedId)
+    setNewlyAddedId(null)
+    const timer = setTimeout(() => setHighlightId(null), 2200)
+    return () => clearTimeout(timer)
+  }, [newlyAddedId, localItems])
 
   // Keyboard shortcut: A to add
   useEffect(() => {
@@ -143,12 +158,13 @@ export function ChargeItemsManager({ items }: { items: ChargeItem[] }) {
     if (isNaN(price)) { setError('Invalid price'); return }
     startTransition(async () => {
       try {
-        await createChargeItem({
+        const created = await createChargeItem({
           name: addName.trim(),
           default_price: price,
           sort_order: localItems.length,
           category: addCategory,
         })
+        setNewlyAddedId(created.id)
         setAdding(false)
         setError('')
       } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
@@ -193,6 +209,7 @@ export function ChargeItemsManager({ items }: { items: ChargeItem[] }) {
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">{error}</div>
       )}
 
+      <style>{`@keyframes rowFlash { 0%,20% { background-color: #d1fae5; } 100% { background-color: transparent; } }`}</style>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -206,10 +223,13 @@ export function ChargeItemsManager({ items }: { items: ChargeItem[] }) {
           <tbody className="divide-y divide-gray-100">
             {displayItems.map((item) => {
               const isEditing = editingId === item.id
+              const isHighlighted = highlightId === item.id
               return (
                 <tr
                   key={item.id}
+                  ref={el => { if (el) rowRefs.current.set(item.id, el); else rowRefs.current.delete(item.id) }}
                   className={isEditing ? 'bg-blue-50' : 'hover:bg-gray-50'}
+                  style={isHighlighted ? { animation: 'rowFlash 2.2s ease-out forwards' } : undefined}
                 >
                   {isEditing ? (
                     <>

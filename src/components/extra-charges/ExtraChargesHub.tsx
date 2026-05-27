@@ -1,16 +1,17 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, ExternalLink,
-  Settings2, Eye, EyeOff, Repeat2, RefreshCw, Search, X,
+  Settings2, Eye, EyeOff, Repeat2, RefreshCw, Search, X, Check, Loader2,
 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { AddExtraChargeForm } from './AddExtraChargeForm'
 import { ResidentCustomPrices } from './ResidentCustomPrices'
 import { ResidentRecurringCharges } from './ResidentRecurringCharges'
-import { deleteExtraCharge } from '@/actions/extra-charges'
+import { deleteExtraCharge, updateExtraCharge } from '@/actions/extra-charges'
 import { applyAllRecurringCharges } from '@/actions/recurring-charges'
 import { cn } from '@/lib/utils'
 
@@ -120,7 +121,7 @@ function DeleteChargeBtn({ chargeId, residentId }: { chargeId: string; residentI
 
 const STORAGE_KEY = 'extraChargesMonth'
 
-type PanelType = 'add' | 'custom' | 'recurring' | null
+type PanelType = 'add' | 'custom' | 'recurring' | 'edit' | null
 
 export function ExtraChargesHub({
   month, currentMonth, hasExplicitMonth,
@@ -131,6 +132,54 @@ export function ExtraChargesHub({
   const [hideEmpty, setHideEmpty] = useState(false)
   const [applyingAll, setApplyingAll] = useState(false)
   const [search, setSearch] = useState('')
+
+  // Inline charge edit
+  const [editingCharge, setEditingCharge] = useState<Charge | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [editDesc, setEditDesc] = useState('')
+  const [editAmount, setEditAmount] = useState('')
+  const [editMonth, setEditMonth] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
+
+  function openEditCharge(charge: Charge) {
+    setEditingCharge(charge)
+    setEditDate(charge.charge_date ?? '')
+    setEditDesc(charge.description)
+    setEditAmount(String(charge.amount))
+    setEditMonth(charge.billing_month)
+    setEditError('')
+    setOpenPanel({ id: charge.resident_id, type: 'edit' })
+  }
+
+  async function saveEditCharge() {
+    if (!editingCharge) return
+    const amount = parseFloat(editAmount)
+    if (isNaN(amount)) { setEditError('Invalid amount'); return }
+    setEditSaving(true)
+    setEditError('')
+    try {
+      await updateExtraCharge(editingCharge.id, editingCharge.resident_id, {
+        charge_date: editDate,
+        description: editDesc.trim(),
+        amount,
+        billing_month: editMonth,
+      })
+      setOpenPanel({ id: '', type: null })
+      setEditingCharge(null)
+      router.refresh()
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : 'Error saving')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  function cancelEditCharge() {
+    setOpenPanel({ id: '', type: null })
+    setEditingCharge(null)
+    setEditError('')
+  }
 
   // Restore last-visited month
   useEffect(() => {
@@ -315,7 +364,7 @@ export function ExtraChargesHub({
               const hasRecurring = resRecurring.length > 0
 
               return (
-                <tbody key={resident.id} className="contents">
+                <React.Fragment key={resident.id}>
                   <tr className={cn(
                     'border-t border-gray-100 first:border-t-0 transition-colors',
                     panel ? 'bg-gray-50/60' : 'hover:bg-gray-50'
@@ -357,12 +406,16 @@ export function ExtraChargesHub({
                             <span
                               key={c.id}
                               className={cn(
-                                'group/chip inline-flex items-center text-xs rounded-full px-2.5 py-0.5 border',
-                                c.recurring_charge_id
+                                'group/chip inline-flex items-center text-xs rounded-full px-2.5 py-0.5 border transition-colors',
+                                editingCharge?.id === c.id
+                                  ? 'bg-yellow-100 border-yellow-300 text-yellow-800'
+                                  : c.recurring_charge_id
                                   ? 'bg-orange-50 border-orange-100 text-orange-700'
-                                  : 'bg-blue-50 border-blue-100 text-blue-700'
+                                  : 'bg-blue-50 border-blue-100 text-blue-700',
+                                isAdmin && 'cursor-pointer hover:ring-1 hover:ring-offset-1 hover:ring-blue-300'
                               )}
-                              title={c.recurring_charge_id ? 'Recurring charge' : undefined}
+                              title={isAdmin ? 'Click to edit' : c.recurring_charge_id ? 'Recurring charge' : undefined}
+                              onClick={isAdmin ? () => openEditCharge(c) : undefined}
                             >
                               {c.recurring_charge_id && <Repeat2 className="w-2.5 h-2.5 mr-1 opacity-60" />}
                               {c.description}
@@ -501,7 +554,77 @@ export function ExtraChargesHub({
                       </td>
                     </tr>
                   )}
-                </tbody>
+
+                  {/* Edit charge panel */}
+                  {panel === 'edit' && editingCharge && editingCharge.resident_id === resident.id && (
+                    <tr className="border-t border-yellow-200 bg-yellow-50/60">
+                      <td colSpan={5} className="px-6 py-4">
+                        <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide mb-3">
+                          Edit Charge — {editingCharge.description}
+                        </p>
+                        <div className="flex flex-wrap items-end gap-2">
+                          <div className="flex flex-col gap-0.5">
+                            <label className="text-xs text-gray-500">Date</label>
+                            <Input
+                              type="date"
+                              value={editDate}
+                              onChange={e => setEditDate(e.target.value)}
+                              className="h-7 text-xs w-32"
+                              autoFocus
+                            />
+                          </div>
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-40">
+                            <label className="text-xs text-gray-500">Description</label>
+                            <Input
+                              value={editDesc}
+                              onChange={e => setEditDesc(e.target.value)}
+                              className="h-7 text-xs"
+                              onKeyDown={e => { if (e.key === 'Enter') saveEditCharge(); if (e.key === 'Escape') cancelEditCharge() }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <label className="text-xs text-gray-500">Amount (RM)</label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={editAmount}
+                              onChange={e => setEditAmount(e.target.value)}
+                              className="h-7 text-xs w-24"
+                              onKeyDown={e => { if (e.key === 'Enter') saveEditCharge(); if (e.key === 'Escape') cancelEditCharge() }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <label className="text-xs text-gray-500">Billing month</label>
+                            <Input
+                              type="month"
+                              value={editMonth}
+                              onChange={e => setEditMonth(e.target.value)}
+                              className="h-7 text-xs w-32"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 pb-0.5">
+                            <button
+                              onClick={saveEditCharge}
+                              disabled={editSaving}
+                              className="flex items-center justify-center w-7 h-7 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                              title="Save"
+                            >
+                              {editSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              onClick={cancelEditCharge}
+                              className="flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-100"
+                              title="Cancel"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        {editError && <p className="text-xs text-red-600 mt-1.5">{editError}</p>}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               )
             })}
           </tbody>

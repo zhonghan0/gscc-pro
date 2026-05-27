@@ -77,10 +77,12 @@ const DEFAULT_TRANSPORT = 70
 export function DriverPayoutDetail({ payout, trips: initialTrips, transportationItems, clinicBillsItemId, residents }: Props) {
   const router = useRouter()
   const printRef = useRef<HTMLDivElement>(null)
+  const addDateRef = useRef<HTMLInputElement>(null)
   const [trips, setTrips] = useState<Trip[]>(initialTrips)
   const [copying, setCopying] = useState(false)
   const [copied, setCopied] = useState(false)
   const [preview, setPreview] = useState(false)
+  const [hideTransportPrefix, setHideTransportPrefix] = useState(false)
 
   // Date sort: null = insertion order, 'asc' = oldest first, 'desc' = newest first
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
@@ -231,6 +233,8 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
       setAddBill('')
       setAddResidentSearch('')
       setAddResidentAmount('')
+      // Focus date input so next record can be entered immediately
+      setTimeout(() => addDateRef.current?.focus(), 0)
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Failed to add trip')
     } finally {
@@ -312,6 +316,13 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
 
   const editable = !payout.finalized
 
+  function displayDesc(desc: string) {
+    if (!hideTransportPrefix) return desc
+    // Case-insensitive: strip common transport prefixes
+    // Matches: "Transport(ation) Service To/- ..." and "Transport(ation) To ..."
+    return desc.replace(/^transport(?:ation)?\s+(?:service\s+)?(?:to|[-–—])\s*/i, '')
+  }
+
   const sortIcon = sortDir === 'asc'
     ? <ChevronUp className="w-3 h-3 inline-block ml-0.5" />
     : sortDir === 'desc'
@@ -343,6 +354,15 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
           )}
         </div>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-gray-600 hover:text-gray-900">
+            <input
+              type="checkbox"
+              checked={hideTransportPrefix}
+              onChange={e => setHideTransportPrefix(e.target.checked)}
+              className="w-3.5 h-3.5 accent-blue-600"
+            />
+            Shorten Description
+          </label>
           <Button variant="outline" size="sm" onClick={() => setPreview(v => !v)}>
             {preview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             {preview ? 'Exit Preview' : 'Preview'}
@@ -461,7 +481,7 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
                         onClick={editable ? () => startEdit(trip) : undefined}
                         title={editable ? 'Click to edit' : undefined}
                       >
-                        <p className="text-gray-900">{trip.description}</p>
+                        <p className="text-gray-900">{displayDesc(trip.description)}</p>
                         {trip.resident_name && (
                           <p className="text-xs text-gray-400 mt-0.5">{trip.resident_name}</p>
                         )}
@@ -520,7 +540,7 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
                                   <ChevronDown className="w-3 h-3" />
                                 </button>
                               </div>
-                              <Input type="date" value={addDate} onChange={e => setAddDate(e.target.value)} className="h-8 text-sm w-36" />
+                              <Input ref={addDateRef} type="date" value={addDate} onChange={e => setAddDate(e.target.value)} className="h-8 text-sm w-36" />
                             </div>
                           </div>
 

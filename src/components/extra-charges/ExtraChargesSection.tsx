@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, ExternalLink } from 'lucide-react'
+import { Plus, Trash2, ExternalLink, Check, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { AddExtraChargeForm } from './AddExtraChargeForm'
 import { ResidentCustomPrices } from './ResidentCustomPrices'
-import { deleteExtraCharge } from '@/actions/extra-charges'
+import { deleteExtraCharge, updateExtraCharge } from '@/actions/extra-charges'
 
 interface ChargeItem {
   id: string
@@ -53,12 +54,12 @@ function DeleteChargeBtn({ chargeId, residentId }: { chargeId: string; residentI
   const [, startTransition] = useTransition()
 
   if (!confirm) return (
-    <button onClick={() => setConfirm(true)} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete">
+    <button onClick={e => { e.stopPropagation(); setConfirm(true) }} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete">
       <Trash2 className="w-3.5 h-3.5" />
     </button>
   )
   return (
-    <span className="flex items-center gap-1 text-xs">
+    <span className="flex items-center gap-1 text-xs" onClick={e => e.stopPropagation()}>
       <button className="text-red-600 hover:underline font-medium" onClick={() => startTransition(() => deleteExtraCharge(chargeId, residentId))}>Yes</button>
       <span className="text-gray-300">·</span>
       <button className="text-gray-500 hover:underline" onClick={() => setConfirm(false)}>No</button>
@@ -71,6 +72,49 @@ export function ExtraChargesSection({
 }: Props) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [showCustomPrices, setShowCustomPrices] = useState(false)
+
+  // Inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [editDesc, setEditDesc] = useState('')
+  const [editAmount, setEditAmount] = useState('')
+  const [editMonth, setEditMonth] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
+
+  function startEdit(charge: Charge) {
+    setEditingId(charge.id)
+    setEditDate(charge.charge_date ?? '')
+    setEditDesc(charge.description)
+    setEditAmount(String(charge.amount))
+    setEditMonth(charge.billing_month)
+    setEditError('')
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditError('')
+  }
+
+  async function saveEdit(id: string) {
+    const amount = parseFloat(editAmount)
+    if (isNaN(amount)) { setEditError('Invalid amount'); return }
+    setEditSaving(true)
+    setEditError('')
+    try {
+      await updateExtraCharge(id, residentId, {
+        charge_date: editDate,
+        description: editDesc.trim(),
+        amount,
+        billing_month: editMonth,
+      })
+      setEditingId(null)
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : 'Error saving')
+    } finally {
+      setEditSaving(false)
+    }
+  }
 
   // Group recent charges by billing month for display
   const byMonth = new Map<string, Charge[]>()
@@ -160,20 +204,94 @@ export function ExtraChargesSection({
 
               <table className="w-full text-sm">
                 <tbody className="divide-y divide-gray-100">
-                  {charges.map(charge => (
-                    <tr key={charge.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2.5 text-gray-400 text-xs whitespace-nowrap w-24">{fmtDate(charge.charge_date)}</td>
-                      <td className="px-4 py-2.5 text-gray-800">{charge.description}</td>
-                      <td className="px-4 py-2.5 text-right font-medium text-gray-900 whitespace-nowrap">
-                        RM {Number(charge.amount).toFixed(2)}
-                      </td>
-                      {isAdmin && (
-                        <td className="px-3 py-2">
-                          <DeleteChargeBtn chargeId={charge.id} residentId={residentId} />
+                  {charges.map(charge => {
+                    const isEditing = editingId === charge.id
+                    return isEditing ? (
+                      /* ── Inline edit row ── */
+                      <tr key={charge.id} className="bg-yellow-50 border-b border-yellow-100">
+                        <td colSpan={isAdmin ? 4 : 3} className="px-3 py-2">
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs text-gray-500">Date</label>
+                              <Input
+                                type="date"
+                                value={editDate}
+                                onChange={e => setEditDate(e.target.value)}
+                                className="h-7 text-xs w-32"
+                                autoFocus
+                              />
+                            </div>
+                            <div className="flex flex-col gap-0.5 flex-1 min-w-32">
+                              <label className="text-xs text-gray-500">Description</label>
+                              <Input
+                                value={editDesc}
+                                onChange={e => setEditDesc(e.target.value)}
+                                className="h-7 text-xs"
+                                onKeyDown={e => { if (e.key === 'Enter') saveEdit(charge.id); if (e.key === 'Escape') cancelEdit() }}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs text-gray-500">Amount (RM)</label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={editAmount}
+                                onChange={e => setEditAmount(e.target.value)}
+                                className="h-7 text-xs w-24"
+                                onKeyDown={e => { if (e.key === 'Enter') saveEdit(charge.id); if (e.key === 'Escape') cancelEdit() }}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs text-gray-500">Billing month</label>
+                              <Input
+                                type="month"
+                                value={editMonth}
+                                onChange={e => setEditMonth(e.target.value)}
+                                className="h-7 text-xs w-32"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1 pb-0.5">
+                              <button
+                                onClick={() => saveEdit(charge.id)}
+                                disabled={editSaving}
+                                className="flex items-center justify-center w-7 h-7 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                                title="Save"
+                              >
+                                {editSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-100"
+                                title="Cancel"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          {editError && <p className="text-xs text-red-600 mt-1">{editError}</p>}
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                      </tr>
+                    ) : (
+                      /* ── Display row ── */
+                      <tr
+                        key={charge.id}
+                        className={`hover:bg-gray-50 ${isAdmin ? 'cursor-pointer' : ''}`}
+                        onClick={isAdmin ? () => startEdit(charge) : undefined}
+                        title={isAdmin ? 'Click to edit' : undefined}
+                      >
+                        <td className="px-4 py-2.5 text-gray-400 text-xs whitespace-nowrap w-24">{fmtDate(charge.charge_date)}</td>
+                        <td className="px-4 py-2.5 text-gray-800">{charge.description}</td>
+                        <td className="px-4 py-2.5 text-right font-medium text-gray-900 whitespace-nowrap">
+                          RM {Number(charge.amount).toFixed(2)}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-3 py-2">
+                            <DeleteChargeBtn chargeId={charge.id} residentId={residentId} />
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

@@ -134,7 +134,7 @@ export async function createExtraCharge(data: {
   revalidatePath(`/residents/${data.resident_id}`)
 }
 
-export async function updateExtraCharge(id: string, data: {
+export async function updateExtraCharge(id: string, residentId: string, data: {
   charge_date: string
   description: string
   amount: number
@@ -153,6 +153,7 @@ export async function updateExtraCharge(id: string, data: {
     notes: data.notes || null,
   }).eq('id', id)
   if (error) throw new Error(error.message)
+  revalidatePath(`/residents/${residentId}`)
   revalidatePath('/residents')
 }
 
