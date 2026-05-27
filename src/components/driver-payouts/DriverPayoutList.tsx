@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Car, ChevronRight, CheckCircle2, Clock } from 'lucide-react'
+import { Trash2, Car, ChevronRight, CheckCircle2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { createDriverPayout, deleteDriverPayout } from '@/actions/driver-payouts'
 import { computePeriodLabel } from './periodLabel'
-import { MobileNav } from '@/components/layout/MobileNav'
 
 interface Worker {
   id: string
@@ -31,6 +30,8 @@ interface Payout {
 interface Props {
   payouts: Payout[]
   workers: Worker[]
+  showForm: boolean
+  setShowForm: (value: boolean | ((v: boolean) => boolean)) => void
 }
 
 function fmtRM(n: number) {
@@ -46,9 +47,8 @@ function driverDisplay(w: Worker | null) {
   return w.nickname ?? w.name
 }
 
-export function DriverPayoutList({ payouts, workers }: Props) {
+export function DriverPayoutList({ payouts, workers, showForm, setShowForm }: Props) {
   const router = useRouter()
-  const [showForm, setShowForm] = useState(false)
   const [workerId, setWorkerId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -90,20 +90,6 @@ export function DriverPayoutList({ payouts, workers }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <MobileNav />
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Driver Payouts</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Track transport trips and calculate driver pay per period.</p>
-          </div>
-        </div>
-        <Button onClick={() => setShowForm(v => !v)}>
-          <Plus className="w-4 h-4" /> New Payout
-        </Button>
-      </div>
-
       {/* New payout form */}
       {showForm && (
         <form onSubmit={handleCreate} className="bg-white border border-gray-200 rounded-xl p-5 space-y-4 shadow-sm">

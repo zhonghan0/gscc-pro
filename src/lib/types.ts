@@ -446,6 +446,7 @@ export type Database = {
           bill_amount: number
           sort_order: number
           created_at: string
+          resident_id: string | null
         }
         Insert: {
           id?: string
@@ -456,6 +457,7 @@ export type Database = {
           bill_amount?: number
           sort_order?: number
           created_at?: string
+          resident_id?: string | null
         }
         Update: {
           id?: string
@@ -466,6 +468,7 @@ export type Database = {
           bill_amount?: number
           sort_order?: number
           created_at?: string
+          resident_id?: string | null
         }
         Relationships: []
       }

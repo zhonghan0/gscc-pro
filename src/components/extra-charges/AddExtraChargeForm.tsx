@@ -1,17 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Check, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createExtraCharge, createChargeItem } from '@/actions/extra-charges'
+import { sortChargeItems, getStoredSort } from '@/lib/charge-item-sort'
 
 interface ChargeItem {
   id: string
   name: string
   default_price: number
   unit: string | null
+  category?: string | null
 }
 
 interface ResidentPrice {
@@ -41,6 +43,7 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
 
   // Local copy of charge items so we can append newly created ones immediately
   const [chargeItems, setChargeItems] = useState<ChargeItem[]>(initialChargeItems)
+  const sortedChargeItems = useMemo(() => sortChargeItems(chargeItems, getStoredSort()), [chargeItems])
 
   const [selectedItemId, setSelectedItemId] = useState<string>('__free__')
   const [description, setDescription] = useState('')
@@ -155,7 +158,7 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="__free__">— Free text (custom) —</option>
-          {chargeItems.map(item => {
+          {sortedChargeItems.map(item => {
             const price = priceMap.get(item.id) ?? item.default_price
             return (
               <option key={item.id} value={item.id}>

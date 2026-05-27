@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { DriverPayoutList } from '@/components/driver-payouts/DriverPayoutList'
+import { DriverPayoutPageClient } from '@/components/driver-payouts/DriverPayoutPageClient'
 
 export default async function DriverPayoutsPage() {
   const supabase = createClient()
@@ -41,9 +41,5 @@ export default async function DriverPayoutsPage() {
     }
   })
 
-  return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <DriverPayoutList payouts={enriched} workers={workers ?? []} />
-    </div>
-  )
+  return <DriverPayoutPageClient payouts={enriched} workers={workers ?? []} />
 }

@@ -16,6 +16,7 @@ import {
   updateDriverPayout,
   updateDriverPayoutTrip,
 } from '@/actions/driver-payouts'
+import { createExtraCharge } from '@/actions/extra-charges'
 import { computePeriodLabel } from './periodLabel'
 
 interface Trip {
@@ -25,6 +26,8 @@ interface Trip {
   transport_amount: number
   bill_amount: number
   sort_order: number
+  resident_id: string | null
+  resident_name: string | null
 }
 
 interface Worker {
@@ -41,10 +44,23 @@ interface Payout {
   worker: Worker | null
 }
 
+interface TransportItem {
+  id: string
+  name: string
+  default_price: number
+}
+
+interface Resident {
+  id: string
+  name: string
+}
+
 interface Props {
   payout: Payout
   trips: Trip[]
-  knownDescriptions: string[]
+  transportationItems: TransportItem[]
+  clinicBillsItemId: string | null
+  residents: Resident[]
 }
 
 function fmtDate(d: string): string {
@@ -58,7 +74,7 @@ function fmtRM(n: number): string {
 
 const DEFAULT_TRANSPORT = 70
 
-export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescriptions }: Props) {
+export function DriverPayoutDetail({ payout, trips: initialTrips, transportationItems, clinicBillsItemId, residents }: Props) {
   const router = useRouter()
   const printRef = useRef<HTMLDivElement>(null)
   const [trips, setTrips] = useState<Trip[]>(initialTrips)
@@ -94,8 +110,32 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescripti
   const [addDesc, setAddDesc] = useState('')
   const [addTransport, setAddTransport] = useState(String(DEFAULT_TRANSPORT))
   const [addBill, setAddBill] = useState('')
+  const [addResidentSearch, setAddResidentSearch] = useState('')
+  const [addResidentAmount, setAddResidentAmount] = useState('') // what to charge the resident
+  const [addSyncToExtra, setAddSyncToExtra] = useState(true)
   const [addSaving, setAddSaving] = useState(false)
   const [addError, setAddError] = useState('')
+
+  // Derived: matched resident from search text
+  const addResident = useMemo(
+    () => residents.find(r => r.name === addResidentSearch) ?? null,
+    [residents, addResidentSearch]
+  )
+
+  // Derived: matched transportation charge item from description
+  const matchedTransportItem = useMemo(
+    () => transportationItems.find(i => i.name === addDesc.trim()) ?? null,
+    [transportationItems, addDesc]
+  )
+
+  function handleDescChange(val: string) {
+    setAddDesc(val)
+    // Auto-fill resident charge amount from the matched charge item's default price
+    const item = transportationItems.find(i => i.name === val.trim())
+    if (item) {
+      setAddResidentAmount(String(item.default_price))
+    }
+  }
 
   // Inline edit
   const [editId, setEditId] = useState<string | null>(null)
@@ -128,6 +168,17 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescripti
     if (!addDesc.trim()) { setAddError('Description is required'); return }
     const transport = parseFloat(addTransport) || 0
     const bill = parseFloat(addBill) || 0
+
+    // Validate resident charge amount when syncing
+    const willSync = addSyncToExtra && addResident
+    if (willSync) {
+      const residentAmt = parseFloat(addResidentAmount)
+      if (addResidentAmount.trim() === '' || isNaN(residentAmt)) {
+        setAddError('Enter the amount to charge the resident for this trip')
+        return
+      }
+    }
+
     setAddSaving(true)
     setAddError('')
     try {
@@ -138,14 +189,48 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescripti
         transport_amount: transport,
         bill_amount: bill,
         sort_order: trips.length,
+        resident_id: addResident?.id ?? null,
       })
+
+      // Sync to extra charges if checkbox is on and a resident is matched
+      if (willSync && addResident) {
+        const billingMonth = addDate ? addDate.substring(0, 7) : new Date().toISOString().substring(0, 7)
+        const residentChargeAmt = parseFloat(addResidentAmount) || 0
+        // Transport extra charge — use resident charge amount (from charge item price), not driver payout amount
+        if (residentChargeAmt > 0) {
+          await createExtraCharge({
+            resident_id: addResident.id,
+            charge_item_id: matchedTransportItem?.id ?? null,
+            billing_month: billingMonth,
+            charge_date: addDate || null,
+            description: addDesc.trim(),
+            amount: residentChargeAmt,
+          })
+        }
+        // Bill extra charge (same amount — directly from clinic)
+        if (bill > 0) {
+          await createExtraCharge({
+            resident_id: addResident.id,
+            charge_item_id: clinicBillsItemId,
+            billing_month: billingMonth,
+            charge_date: addDate || null,
+            description: addDesc.trim(),
+            amount: bill,
+          })
+        }
+      }
+
       setTrips(prev => [...prev, {
         id, trip_date: addDate || null, description: addDesc.trim(),
         transport_amount: transport, bill_amount: bill, sort_order: trips.length,
+        resident_id: addResident?.id ?? null,
+        resident_name: addResident?.name ?? null,
       }])
       setAddDesc('')
       setAddTransport(String(DEFAULT_TRANSPORT))
       setAddBill('')
+      setAddResidentSearch('')
+      setAddResidentAmount('')
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Failed to add trip')
     } finally {
@@ -234,27 +319,25 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescripti
     : <ArrowUpDown className="w-3 h-3 inline-block ml-0.5 opacity-40" />
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       {/* Inject style to hide controls when preview is on */}
       {preview && <style>{'.no-screenshot { display: none !important; }'}</style>}
 
-      {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+      {/* Header — matches standard Header component styling */}
+      <header className="flex items-center justify-between h-16 px-6 border-b border-gray-200 bg-white flex-shrink-0 no-screenshot">
         <div className="flex items-center gap-3">
           <MobileNav />
-          <Link href="/driver-payouts">
-            <button className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
+          <Link href="/driver-payouts" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
           </Link>
           <span className="text-gray-300">|</span>
-          <span className="text-sm font-medium text-gray-700">{driverName}</span>
+          <h1 className="text-lg font-semibold text-gray-900">{driverName}</h1>
           {payout.finalized ? (
-            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">
               <CheckCircle2 className="w-3 h-3" /> Finalized
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
               <Clock className="w-3 h-3" /> Draft
             </span>
           )}
@@ -264,12 +347,11 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescripti
             {preview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             {preview ? 'Exit Preview' : 'Preview'}
           </Button>
-          {editable && (
+          {editable ? (
             <Button variant="outline" size="sm" onClick={handleFinalize} disabled={finalizing}>
               Mark as Finalized
             </Button>
-          )}
-          {!editable && (
+          ) : (
             <Button variant="outline" size="sm" onClick={handleFinalize} disabled={finalizing}>
               Unfinalize
             </Button>
@@ -279,226 +361,291 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescripti
             {copying ? 'Capturing…' : copied ? '✓ Copied!' : 'Copy as Image'}
           </Button>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        <div ref={printRef} className="bg-white shadow-sm" style={{ fontFamily: 'system-ui, sans-serif' }}>
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <div ref={printRef} className="bg-white shadow-sm" style={{ fontFamily: 'system-ui, sans-serif' }}>
 
-          {/* Header */}
-          <div className="px-6 py-4 border-b-2 border-gray-800 flex items-start justify-between">
-            <div>
-              <p className="font-bold text-gray-900 text-base">{driverName}</p>
-              <p className="text-sm text-gray-500">{period}</p>
+            {/* Header */}
+            <div className="px-6 py-4 border-b-2 border-gray-800 flex items-start justify-between">
+              <div>
+                <p className="font-bold text-gray-900 text-base">{driverName}</p>
+                <p className="text-sm text-gray-500">{period}</p>
+              </div>
+              <p className="text-sm text-gray-600 font-semibold">TRANSPORT PAYOUT</p>
             </div>
-            <p className="text-sm text-gray-600 font-semibold">TRANSPORT PAYOUT</p>
-          </div>
 
-          {/* Table */}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-300 bg-gray-50">
-                <th className="text-left px-4 py-2 font-semibold text-gray-700 w-28">
-                  <button
-                    type="button"
-                    onClick={cycleSort}
-                    className="no-screenshot flex items-center gap-0.5 hover:text-gray-900 transition-colors"
-                    title="Sort by date"
-                  >
-                    Date {sortIcon}
-                  </button>
-                  <span className="hidden no-screenshot:inline">Date</span>
-                </th>
-                <th className="text-left px-4 py-2 font-semibold text-gray-700">Description</th>
-                <th className="text-right px-4 py-2 font-semibold text-gray-700 w-24">Transport</th>
-                <th className="text-right px-4 py-2 font-semibold text-gray-700 w-24">Bill</th>
-                {editable && <th className="no-screenshot w-10" />}
-              </tr>
-            </thead>
-
-            <tbody>
-              {sortedTrips.length === 0 && !showAdd && (
-                <tr>
-                  <td colSpan={editable ? 5 : 4} className="px-4 py-4 text-center text-xs text-gray-400 italic">
-                    No trips yet
-                  </td>
-                </tr>
-              )}
-
-              {sortedTrips.map(trip => (
-                editId === trip.id ? (
-                  /* Inline edit row */
-                  <tr key={trip.id} className="no-screenshot border-b border-yellow-200 bg-yellow-50">
-                    <td className="px-2 py-1.5">
-                      <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="h-7 text-xs w-28" />
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <Input
-                        list="trip-desc-list-edit"
-                        value={editDesc}
-                        onChange={e => setEditDesc(e.target.value)}
-                        className="h-7 text-xs"
-                        autoFocus
-                      />
-                      <datalist id="trip-desc-list-edit">
-                        {knownDescriptions.map(d => <option key={d} value={d} />)}
-                      </datalist>
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <Input type="number" min="0" step="0.01" value={editTransport} onChange={e => setEditTransport(e.target.value)} className="h-7 text-xs w-20 ml-auto" />
-                    </td>
-                    <td className="px-2 py-1.5">
-                      <Input type="number" min="0" step="0.01" value={editBill} onChange={e => setEditBill(e.target.value)} placeholder="0.00" className="h-7 text-xs w-20 ml-auto" />
-                    </td>
-                    <td className="no-screenshot px-2 py-1.5">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => saveEdit(trip.id)}
-                          disabled={editSaving}
-                          className="flex items-center justify-center w-6 h-6 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                          title="Save"
-                        >
-                          {editSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                        </button>
-                        <button
-                          onClick={() => setEditId(null)}
-                          className="flex items-center justify-center w-6 h-6 rounded border border-gray-200 text-gray-500 hover:bg-gray-100"
-                          title="Cancel"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  /* Display row — click description to edit */
-                  <tr key={trip.id} className="border-b border-gray-100 group">
-                    <td className="px-4 py-2 text-gray-500 text-xs">{trip.trip_date ? fmtDate(trip.trip_date) : ''}</td>
-                    <td
-                      className={`px-4 py-2 text-gray-900 ${editable ? 'cursor-pointer hover:text-blue-600 hover:underline' : ''}`}
-                      onClick={editable ? () => startEdit(trip) : undefined}
-                      title={editable ? 'Click to edit' : undefined}
-                    >
-                      {trip.description}
-                    </td>
-                    <td className="px-4 py-2 text-right text-gray-900">{trip.transport_amount > 0 ? fmtRM(trip.transport_amount) : ''}</td>
-                    <td className="px-4 py-2 text-right text-gray-900">{trip.bill_amount > 0 ? fmtRM(trip.bill_amount) : ''}</td>
-                    {editable && (
-                      <td className="no-screenshot px-2 py-1.5">
-                        <button
-                          onClick={() => handleDelete(trip.id)}
-                          disabled={deletingId === trip.id}
-                          className="flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-40 opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                )
-              ))}
-
-              {/* Add trip button row */}
-              {editable && !showAdd && (
-                <tr className="no-screenshot border-b border-gray-100">
-                  <td colSpan={5} className="px-4 py-2">
+            {/* Table */}
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-300 bg-gray-50">
+                  <th className="text-left px-4 py-2 font-semibold text-gray-700 w-28">
                     <button
-                      onClick={() => setShowAdd(true)}
-                      className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      type="button"
+                      onClick={cycleSort}
+                      className="no-screenshot flex items-center gap-0.5 hover:text-gray-900 transition-colors"
+                      title="Sort by date"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add Trip
+                      Date {sortIcon}
                     </button>
-                  </td>
+                    <span className="hidden no-screenshot:inline">Date</span>
+                  </th>
+                  <th className="text-left px-4 py-2 font-semibold text-gray-700">Description</th>
+                  <th className="text-right px-4 py-2 font-semibold text-gray-700 w-24">Transport</th>
+                  <th className="text-right px-4 py-2 font-semibold text-gray-700 w-24">Bill</th>
+                  {editable && <th className="no-screenshot w-10" />}
                 </tr>
-              )}
+              </thead>
 
-              {/* Add trip form row */}
-              {editable && showAdd && (
-                <tr className="no-screenshot bg-blue-50 border-b border-blue-100">
-                  <td colSpan={5} className="px-3 py-3">
-                    <form onSubmit={handleAddTrip}>
-                      <div className="flex items-end gap-2 flex-wrap">
-                        <div className="flex flex-col gap-0.5">
-                          <label className="text-xs font-medium text-gray-600">Date</label>
-                          <div className="flex items-center gap-1">
-                            <div className="flex flex-col rounded-md border border-gray-300 overflow-hidden flex-shrink-0">
-                              <button type="button" onClick={() => shiftAddDate(+1)}
-                                className="flex items-center justify-center w-6 h-4 text-gray-500 hover:text-gray-900 hover:bg-gray-100 border-b border-gray-300 transition-colors"
-                                title="Next day">
-                                <ChevronUp className="w-3 h-3" />
-                              </button>
-                              <button type="button" onClick={() => shiftAddDate(-1)}
-                                className="flex items-center justify-center w-6 h-4 text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                                title="Previous day">
-                                <ChevronDown className="w-3 h-3" />
-                              </button>
+              <tbody>
+                {sortedTrips.length === 0 && !showAdd && (
+                  <tr>
+                    <td colSpan={editable ? 5 : 4} className="px-4 py-4 text-center text-xs text-gray-400 italic">
+                      No trips yet
+                    </td>
+                  </tr>
+                )}
+
+                {sortedTrips.map(trip => (
+                  editId === trip.id ? (
+                    /* Inline edit row */
+                    <tr key={trip.id} className="no-screenshot border-b border-yellow-200 bg-yellow-50">
+                      <td className="px-2 py-1.5">
+                        <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="h-7 text-xs w-28" />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <Input
+                          list="trip-desc-list-edit"
+                          value={editDesc}
+                          onChange={e => setEditDesc(e.target.value)}
+                          className="h-7 text-xs"
+                          autoFocus
+                        />
+                        <datalist id="trip-desc-list-edit">
+                          {transportationItems.map(d => <option key={d.id} value={d.name} />)}
+                        </datalist>
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <Input type="number" min="0" step="0.01" value={editTransport} onChange={e => setEditTransport(e.target.value)} className="h-7 text-xs w-20 ml-auto" />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <Input type="number" min="0" step="0.01" value={editBill} onChange={e => setEditBill(e.target.value)} placeholder="0.00" className="h-7 text-xs w-20 ml-auto" />
+                      </td>
+                      <td className="no-screenshot px-2 py-1.5">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => saveEdit(trip.id)}
+                            disabled={editSaving}
+                            className="flex items-center justify-center w-6 h-6 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                            title="Save"
+                          >
+                            {editSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                          </button>
+                          <button
+                            onClick={() => setEditId(null)}
+                            className="flex items-center justify-center w-6 h-6 rounded border border-gray-200 text-gray-500 hover:bg-gray-100"
+                            title="Cancel"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    /* Display row — click description to edit */
+                    <tr key={trip.id} className="border-b border-gray-100 group">
+                      <td className="px-4 py-2 text-gray-500 text-xs">{trip.trip_date ? fmtDate(trip.trip_date) : ''}</td>
+                      <td
+                        className={`px-4 py-2 ${editable ? 'cursor-pointer hover:text-blue-600 hover:underline' : ''}`}
+                        onClick={editable ? () => startEdit(trip) : undefined}
+                        title={editable ? 'Click to edit' : undefined}
+                      >
+                        <p className="text-gray-900">{trip.description}</p>
+                        {trip.resident_name && (
+                          <p className="text-xs text-gray-400 mt-0.5">{trip.resident_name}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right text-gray-900">{trip.transport_amount > 0 ? fmtRM(trip.transport_amount) : ''}</td>
+                      <td className="px-4 py-2 text-right text-gray-900">{trip.bill_amount > 0 ? fmtRM(trip.bill_amount) : ''}</td>
+                      {editable && (
+                        <td className="no-screenshot px-2 py-1.5">
+                          <button
+                            onClick={() => handleDelete(trip.id)}
+                            disabled={deletingId === trip.id}
+                            className="flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-40 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  )
+                ))}
+
+                {/* Add trip button row */}
+                {editable && !showAdd && (
+                  <tr className="no-screenshot border-b border-gray-100">
+                    <td colSpan={5} className="px-4 py-2">
+                      <button
+                        onClick={() => setShowAdd(true)}
+                        className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Trip
+                      </button>
+                    </td>
+                  </tr>
+                )}
+
+                {/* Add trip form row */}
+                {editable && showAdd && (
+                  <tr className="no-screenshot bg-blue-50 border-b border-blue-100">
+                    <td colSpan={5} className="px-3 py-3">
+                      <form onSubmit={handleAddTrip}>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          {/* Date */}
+                          <div className="flex flex-col gap-0.5">
+                            <label className="text-xs font-medium text-gray-600">Date</label>
+                            <div className="flex items-center gap-1">
+                              <div className="flex flex-col rounded-md border border-gray-300 overflow-hidden flex-shrink-0">
+                                <button type="button" onClick={() => shiftAddDate(+1)}
+                                  className="flex items-center justify-center w-6 h-4 text-gray-500 hover:text-gray-900 hover:bg-gray-100 border-b border-gray-300 transition-colors"
+                                  title="Next day">
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button type="button" onClick={() => shiftAddDate(-1)}
+                                  className="flex items-center justify-center w-6 h-4 text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                                  title="Previous day">
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <Input type="date" value={addDate} onChange={e => setAddDate(e.target.value)} className="h-8 text-sm w-36" />
                             </div>
-                            <Input type="date" value={addDate} onChange={e => setAddDate(e.target.value)} className="h-8 text-sm w-36" />
+                          </div>
+
+                          {/* Description + Resident + Sync stacked vertically */}
+                          <div className="flex flex-col gap-1.5 flex-1 min-w-40">
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs font-medium text-gray-600">Description *</label>
+                              <Input
+                                list="transport-items-list"
+                                value={addDesc}
+                                onChange={e => handleDescChange(e.target.value)}
+                                placeholder="e.g. Hospital Visit"
+                                className="h-8 text-sm"
+                                autoFocus
+                              />
+                              <datalist id="transport-items-list">
+                                {transportationItems.map(i => <option key={i.id} value={i.name} />)}
+                              </datalist>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs font-medium text-gray-600">Resident</label>
+                              <Input
+                                list="residents-list"
+                                value={addResidentSearch}
+                                onChange={e => setAddResidentSearch(e.target.value)}
+                                placeholder="Search resident…"
+                                className="h-8 text-sm"
+                              />
+                              <datalist id="residents-list">
+                                {residents.map(r => <option key={r.id} value={r.name} />)}
+                              </datalist>
+                            </div>
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={addSyncToExtra}
+                                onChange={e => setAddSyncToExtra(e.target.checked)}
+                                className="w-3.5 h-3.5 accent-blue-600"
+                              />
+                              <span className="text-xs text-gray-600">
+                                Sync to extra charges
+                                {addSyncToExtra && addResident
+                                  ? <span className="ml-1 text-blue-600 font-medium">→ {addResident.name}</span>
+                                  : !addResident && addResidentSearch
+                                  ? <span className="ml-1 text-amber-500"> (no match)</span>
+                                  : null}
+                              </span>
+                            </label>
+                            {/* Resident charge amount — shown when sync is active */}
+                            {addSyncToExtra && addResident && (
+                              <div className="flex flex-col gap-0.5">
+                                <label className="text-xs font-medium text-gray-600">
+                                  Charge resident (RM)
+                                  {matchedTransportItem
+                                    ? <span className="ml-1 text-gray-400 font-normal">from &quot;{matchedTransportItem.name}&quot;</span>
+                                    : <span className="ml-1 text-amber-600 font-normal">— no charge item matched, enter amount</span>}
+                                </label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={addResidentAmount}
+                                  onChange={e => setAddResidentAmount(e.target.value)}
+                                  placeholder="e.g. 120.00"
+                                  className={`h-8 text-sm w-32 ${!matchedTransportItem && !addResidentAmount ? 'border-amber-400 focus:ring-amber-400' : ''}`}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Transport */}
+                          <div className="flex flex-col gap-0.5">
+                            <label className="text-xs font-medium text-gray-600">Transport</label>
+                            <Input type="number" min="0" step="0.01" value={addTransport} onChange={e => setAddTransport(e.target.value)} className="h-8 text-sm w-24" />
+                          </div>
+
+                          {/* Bill */}
+                          <div className="flex flex-col gap-0.5">
+                            <label className="text-xs font-medium text-gray-600">Bill</label>
+                            <Input type="number" min="0" step="0.01" value={addBill} onChange={e => setAddBill(e.target.value)} placeholder="0.00" className="h-8 text-sm w-24" />
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="flex items-start gap-1.5 pt-5">
+                            <button type="submit" disabled={addSaving}
+                              className="flex items-center justify-center w-8 h-8 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                              title="Add trip">
+                              {addSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            </button>
+                            <button type="button" onClick={() => { setShowAdd(false); setAddError(''); setAddResidentSearch(''); setAddResidentAmount('') }}
+                              className="flex items-center justify-center w-8 h-8 rounded-md border border-gray-200 text-gray-500 hover:bg-gray-100"
+                              title="Cancel">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex flex-col gap-0.5 flex-1 min-w-32">
-                          <label className="text-xs font-medium text-gray-600">Description *</label>
-                          <Input
-                            list="trip-desc-list"
-                            value={addDesc}
-                            onChange={e => setAddDesc(e.target.value)}
-                            placeholder="e.g. Hospital visit"
-                            className="h-8 text-sm"
-                            autoFocus
-                          />
-                          <datalist id="trip-desc-list">
-                            {knownDescriptions.map(d => <option key={d} value={d} />)}
-                          </datalist>
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                          <label className="text-xs font-medium text-gray-600">Transport</label>
-                          <Input type="number" min="0" step="0.01" value={addTransport} onChange={e => setAddTransport(e.target.value)} className="h-8 text-sm w-24" />
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                          <label className="text-xs font-medium text-gray-600">Bill</label>
-                          <Input type="number" min="0" step="0.01" value={addBill} onChange={e => setAddBill(e.target.value)} placeholder="0.00" className="h-8 text-sm w-24" />
-                        </div>
-                        <div className="flex items-end gap-1.5 pb-0.5">
-                          <button type="submit" disabled={addSaving}
-                            className="flex items-center justify-center w-8 h-8 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                            title="Add trip">
-                            {addSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                          </button>
-                          <button type="button" onClick={() => { setShowAdd(false); setAddError('') }}
-                            className="flex items-center justify-center w-8 h-8 rounded-md border border-gray-200 text-gray-500 hover:bg-gray-100"
-                            title="Cancel">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      {addError && <p className="mt-1.5 text-xs text-red-600">{addError}</p>}
-                    </form>
-                  </td>
+                        {addError && <p className="mt-1.5 text-xs text-red-600">{addError}</p>}
+                      </form>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+
+              <tfoot>
+                <tr className="border-t border-gray-200 bg-gray-50">
+                  <td colSpan={2} className="px-4 py-2 text-xs text-gray-500 font-medium">Subtotal</td>
+                  <td className="px-4 py-2 text-right text-gray-700 font-medium">{fmtRM(transportTotal)}</td>
+                  <td className="px-4 py-2 text-right text-gray-700 font-medium">{billTotal > 0 ? fmtRM(billTotal) : ''}</td>
+                  {editable && <td className="no-screenshot" />}
                 </tr>
-              )}
-            </tbody>
+                <tr className="border-t-2 border-gray-800 bg-gray-50">
+                  <td colSpan={3} className="px-4 py-3 font-bold text-gray-900">TOTAL</td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-900 text-base">RM {fmtRM(grandTotal)}</td>
+                  {editable && <td className="no-screenshot" />}
+                </tr>
+              </tfoot>
+            </table>
 
-            <tfoot>
-              <tr className="border-t border-gray-200 bg-gray-50">
-                <td colSpan={2} className="px-4 py-2 text-xs text-gray-500 font-medium">Subtotal</td>
-                <td className="px-4 py-2 text-right text-gray-700 font-medium">{fmtRM(transportTotal)}</td>
-                <td className="px-4 py-2 text-right text-gray-700 font-medium">{billTotal > 0 ? fmtRM(billTotal) : ''}</td>
-                {editable && <td className="no-screenshot" />}
-              </tr>
-              <tr className="border-t-2 border-gray-800 bg-gray-50">
-                <td colSpan={3} className="px-4 py-3 font-bold text-gray-900">TOTAL</td>
-                <td className="px-4 py-3 text-right font-bold text-gray-900 text-base">RM {fmtRM(grandTotal)}</td>
-                {editable && <td className="no-screenshot" />}
-              </tr>
-            </tfoot>
-          </table>
-
-          {payout.finalized && (
-            <div className="no-screenshot flex items-center gap-2 px-5 py-3 border-t border-green-100 bg-green-50 text-sm text-green-700">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              Finalized — click "Unfinalize" in the toolbar to make changes.
-            </div>
-          )}
+            {payout.finalized && (
+              <div className="no-screenshot flex items-center gap-2 px-5 py-3 border-t border-green-100 bg-green-50 text-sm text-green-700">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                Finalized — click &quot;Unfinalize&quot; in the toolbar to make changes.
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -507,6 +654,6 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescripti
           Image copied — paste into WhatsApp
         </div>
       )}
-    </div>
+    </>
   )
 }

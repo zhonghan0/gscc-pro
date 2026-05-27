@@ -44,6 +44,7 @@ export async function createDriverPayoutTrip(data: {
   transport_amount: number
   bill_amount: number
   sort_order?: number
+  resident_id?: string | null
 }) {
   const supabase = createClient()
   const { data: created, error } = await supabase

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { X, Pencil, ArrowLeftRight, Plus, CheckCircle2, AlertCircle } from 'lucide-react'
+import { X, Pencil, ArrowLeftRight, Plus, CheckCircle2, AlertCircle, Filter } from 'lucide-react'
 
 interface ResidentRow {
   id: string
@@ -117,6 +117,7 @@ export function PaymentsCalendar({ residents, payments, extraChargesMap, highlig
     if (typeof window === 'undefined') return false
     return localStorage.getItem(GRID_ORDER_KEY) === 'true'
   })
+  const [unpaidOnly, setUnpaidOnly] = useState(false)
 
   function toggleReversed() {
     setReversed(prev => {
@@ -132,11 +133,6 @@ export function PaymentsCalendar({ residents, payments, extraChargesMap, highlig
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [selected, setSelected] = useState<{ payment: PaymentRow; resident: ResidentRow; isLate: boolean; status: 'full' | 'partial' | 'unknown' } | null>(null)
 
-  // Sort residents by name
-  const sorted = [...residents].sort((a, b) =>
-    a.full_name.localeCompare(b.full_name)
-  )
-
   // Build lookup: residentId → month → earliest payment
   const lookup = new Map<string, Map<string, PaymentRow>>()
   for (const p of payments) {
@@ -149,6 +145,16 @@ export function PaymentsCalendar({ residents, payments, extraChargesMap, highlig
     }
     lookup.set(p.resident_id, resMap)
   }
+
+  // Sort residents by name, then optionally filter to unpaid this month
+  const sorted = [...residents]
+    .sort((a, b) => a.full_name.localeCompare(b.full_name))
+    .filter(r => {
+      if (!unpaidOnly) return true
+      const admissionMonth = r.admission_date?.slice(0, 7) ?? null
+      if (admissionMonth && currentMonth < admissionMonth) return false
+      return !lookup.get(r.id)?.has(currentMonth)
+    })
 
   // Build resident lookup for the detail panel
   const residentById = new Map(residents.map(r => [r.id, r]))
@@ -163,6 +169,17 @@ export function PaymentsCalendar({ residents, payments, extraChargesMap, highlig
         >
           <ArrowLeftRight className="w-3.5 h-3.5" />
           {reversed ? 'Latest first' : 'Oldest first'}
+        </button>
+        <button
+          onClick={() => setUnpaidOnly(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            unpaidOnly
+              ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
+              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+        >
+          <Filter className="w-3.5 h-3.5" />
+          {unpaidOnly ? `Unpaid this month (${sorted.length})` : 'Unpaid this month'}
         </button>
       </div>
 

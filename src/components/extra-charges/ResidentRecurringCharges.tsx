@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { Plus, Trash2, Check, X, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -10,11 +10,13 @@ import {
   deleteRecurringCharge,
   applyRecurringCharges,
 } from '@/actions/recurring-charges'
+import { sortChargeItems, getStoredSort } from '@/lib/charge-item-sort'
 
 interface ChargeItem {
   id: string
   name: string
   default_price: number
+  category?: string | null
 }
 
 interface ResidentPrice {
@@ -46,6 +48,7 @@ export function ResidentRecurringCharges({
 }: Props) {
   const [, startTransition] = useTransition()
   const [items, setItems] = useState(recurringCharges)
+  const sortedChargeItems = useMemo(() => sortChargeItems(chargeItems, getStoredSort()), [chargeItems])
   const [adding, setAdding] = useState(false)
   const [addItemId, setAddItemId] = useState('__free__')
   const [addDesc, setAddDesc] = useState('')
@@ -185,7 +188,7 @@ export function ResidentRecurringCharges({
             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
           >
             <option value="__free__">— Free text —</option>
-            {chargeItems.map(item => (
+            {sortedChargeItems.map(item => (
               <option key={item.id} value={item.id}>
                 {item.name} — RM {(priceMap.get(item.id) ?? item.default_price).toFixed(2)}
               </option>
