@@ -7,7 +7,6 @@ import { useSidebar } from '@/lib/sidebar-context'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import {
-  LayoutDashboard,
   Users,
   ClipboardList,
   Shield,
@@ -25,10 +24,10 @@ import {
   Receipt,
   ReceiptText,
   Car,
+  BarChart2,
 } from 'lucide-react'
 
-const mainItems = [
-  { href: '/dashboard',  label: 'Dashboard', icon: LayoutDashboard },
+const residentsItems = [
   { href: '/residents',  label: 'Residents', icon: Users },
   { href: '/care-notes', label: 'Care Logs', icon: ClipboardList },
 ]
@@ -50,6 +49,12 @@ const othersItems = [
   { href: '/admin/import',  label: 'Import Data', icon: FileUp },
   { href: '/admin/export',  label: 'Export Data', icon: Download },
   { href: '/admin/staff',   label: 'Users',       icon: Shield },
+]
+
+const reportItems = [
+  { href: '/reports/residents', label: 'Residents',  icon: Users },
+  { href: '/reports/revenue',   label: 'Revenue',    icon: BarChart2 },
+  { href: '/reports/caregivers',label: 'Caregivers', icon: HeartHandshake },
 ]
 
 function CountBadge({ count }: { count: number }) {
@@ -159,6 +164,9 @@ export function Sidebar() {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
+  const [residentsOpen, setResidentsOpen] = useState(
+    residentsItems.some(i => isActive(i.href))
+  )
   const [teamOpen, setTeamOpen] = useState(
     teamItems.some(i => isActive(i.href))
   )
@@ -167,6 +175,9 @@ export function Sidebar() {
   )
   const [othersOpen, setOthersOpen] = useState(
     othersItems.some(i => isActive(i.href))
+  )
+  const [reportsOpen, setReportsOpen] = useState(
+    reportItems.some(i => isActive(i.href))
   )
 
   async function handleSignOut() {
@@ -189,7 +200,7 @@ export function Sidebar() {
         collapsed ? 'justify-center px-0' : 'px-4 justify-between'
       )}>
         {!collapsed && (
-          <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <Heart className="w-5 h-5 text-white" />
             </div>
@@ -197,12 +208,14 @@ export function Sidebar() {
               <p className="font-bold text-gray-900 text-sm leading-tight">GSCC Pro</p>
               <p className="text-xs text-gray-500">Care Centre</p>
             </div>
-          </div>
+          </Link>
         )}
         {collapsed && (
-          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Heart className="w-5 h-5 text-white" />
-          </div>
+          <Link href="/dashboard" className="hover:opacity-80 transition-opacity">
+            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Heart className="w-5 h-5 text-white" />
+            </div>
+          </Link>
         )}
         <button
           onClick={toggle}
@@ -219,18 +232,16 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-hidden">
 
-        {/* Main items */}
-        {mainItems.map(({ href, label, icon: Icon }) => (
-          <NavLink
-            key={href}
-            href={href}
-            label={label}
-            icon={Icon}
-            collapsed={collapsed}
-            active={isActive(href)}
-            count={href === '/residents' ? counts.residents : undefined}
-          />
-        ))}
+        {/* Residents group */}
+        <CollapsibleGroup
+          label="Residents"
+          items={residentsItems}
+          open={residentsOpen}
+          onToggle={() => setResidentsOpen(o => !o)}
+          collapsed={collapsed}
+          isActive={isActive}
+          itemCounts={{ '/residents': counts.residents }}
+        />
 
         {/* Team group (admin only) */}
         {isAdmin && (
@@ -254,6 +265,16 @@ export function Sidebar() {
           items={visibleBilling}
           open={billingOpen}
           onToggle={() => setBillingOpen(o => !o)}
+          collapsed={collapsed}
+          isActive={isActive}
+        />
+
+        {/* Reports group */}
+        <CollapsibleGroup
+          label="Reports"
+          items={reportItems}
+          open={reportsOpen}
+          onToggle={() => setReportsOpen(o => !o)}
           collapsed={collapsed}
           isActive={isActive}
         />

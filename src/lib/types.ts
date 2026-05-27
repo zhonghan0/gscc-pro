@@ -114,6 +114,7 @@ export type Database = {
           default_price: number
           unit: string | null
           sort_order: number
+          category: string | null
           created_at: string
         }
         Insert: {
@@ -122,6 +123,7 @@ export type Database = {
           default_price?: number
           unit?: string | null
           sort_order?: number
+          category?: string | null
           created_at?: string
         }
         Update: {
@@ -130,6 +132,7 @@ export type Database = {
           default_price?: number
           unit?: string | null
           sort_order?: number
+          category?: string | null
           created_at?: string
         }
         Relationships: []

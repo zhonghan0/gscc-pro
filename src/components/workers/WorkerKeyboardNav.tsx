@@ -40,7 +40,7 @@ export function WorkerKeyboardNav({ prevHref, nextHref, editHref, newHref, backH
           break
         case 'Escape':
           e.preventDefault()
-          router.push(backHref)
+          router.back()
           break
       }
     }

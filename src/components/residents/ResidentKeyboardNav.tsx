@@ -45,7 +45,7 @@ export function ResidentKeyboardNav({ prevHref, nextHref, editHref, addNoteHref,
           break
         case 'Escape':
           e.preventDefault()
-          router.push(backHref)
+          router.back()
           break
       }
     }

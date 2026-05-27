@@ -11,6 +11,7 @@ export async function createChargeItem(data: {
   default_price: number
   unit?: string
   sort_order?: number
+  category?: string
 }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -23,12 +24,13 @@ export async function createChargeItem(data: {
       default_price: data.default_price,
       unit: data.unit || null,
       sort_order: data.sort_order ?? 0,
+      category: data.category || 'Others',
     })
-    .select('id, name, default_price, unit')
+    .select('id, name, default_price, unit, category')
     .single()
   if (error) throw new Error(error.message)
   revalidatePath('/admin/charge-items')
-  return created as { id: string; name: string; default_price: number; unit: string | null }
+  return created as { id: string; name: string; default_price: number; unit: string | null; category: string | null }
 }
 
 export async function updateChargeItem(id: string, data: {
@@ -36,6 +38,7 @@ export async function updateChargeItem(id: string, data: {
   default_price: number
   unit?: string
   sort_order?: number
+  category?: string
 }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -46,6 +49,7 @@ export async function updateChargeItem(id: string, data: {
     default_price: data.default_price,
     unit: data.unit || null,
     sort_order: data.sort_order ?? 0,
+    category: data.category || 'Others',
   }).eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/charge-items')

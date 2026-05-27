@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { createDriverPayout, deleteDriverPayout } from '@/actions/driver-payouts'
 import { computePeriodLabel } from './periodLabel'
+import { MobileNav } from '@/components/layout/MobileNav'
 
 interface Worker {
   id: string
@@ -91,9 +92,12 @@ export function DriverPayoutList({ payouts, workers }: Props) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Driver Payouts</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Track transport trips and calculate driver pay per period.</p>
+        <div className="flex items-center gap-3">
+          <MobileNav />
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Driver Payouts</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Track transport trips and calculate driver pay per period.</p>
+          </div>
         </div>
         <Button onClick={() => setShowForm(v => !v)}>
           <Plus className="w-4 h-4" /> New Payout

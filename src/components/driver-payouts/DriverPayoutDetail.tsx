@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { MobileNav } from '@/components/layout/MobileNav'
 import { Input } from '@/components/ui/input'
 import {
   createDriverPayoutTrip,
@@ -240,6 +241,7 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, knownDescripti
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <MobileNav />
           <Link href="/driver-payouts">
             <button className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
               <ArrowLeft className="w-4 h-4" /> Back
