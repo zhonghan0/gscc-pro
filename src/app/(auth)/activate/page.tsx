@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { activateAccount } from '@/actions/activate'
 import { Heart, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,8 +21,7 @@ export default function ActivatePage() {
   const [ready, setReady]       = useState(false)
 
   useEffect(() => {
-    // Pre-fill name from session metadata if available.
-    // Always show the form — access is already controlled by middleware + protected layout.
+    // Try to pre-fill name from session — non-blocking, always show form
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setFullName(user.user_metadata?.full_name ?? '')
@@ -37,17 +37,12 @@ export default function ActivatePage() {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-
-    const { error: pwErr } = await supabase.auth.updateUser({ password })
-    if (pwErr) { setError(pwErr.message); setLoading(false); return }
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (fullName.trim()) {
-      await supabase.auth.updateUser({ data: { full_name: fullName.trim() } })
-      await supabase.from('profiles').update({ full_name: fullName.trim(), activated_at: new Date().toISOString() }).eq('id', user!.id)
-    } else {
-      await supabase.from('profiles').update({ activated_at: new Date().toISOString() }).eq('id', user!.id)
+    // Use server action — avoids "Auth session missing" from client-side Supabase
+    const result = await activateAccount({ password, fullName })
+    if (result.error) {
+      setError(result.error)
+      setLoading(false)
+      return
     }
 
     setDone(true)
