@@ -26,9 +26,14 @@ import {
   Car,
   BarChart2,
   SlidersHorizontal,
+  Package,
+  Building2,
+  Tag,
+  TrendingDown,
+  ShoppingCart,
 } from 'lucide-react'
 import type { Role } from '@/lib/permissions'
-import { isElevated, canAccessBilling, canViewWorkers, canAccessReports, isOwner } from '@/lib/permissions'
+import { isElevated, canAccessBilling, canViewWorkers, canAccessReports, isOwner, canAccessInventory } from '@/lib/permissions'
 import { ROLE_LABELS, ROLE_BADGE_CLASS } from '@/lib/permissions'
 
 type NavItem = {
@@ -55,6 +60,14 @@ const billingItems: NavItem[] = [
   { href: '/extra-charges',      label: 'Extra Charges', icon: ReceiptText },
   { href: '/driver-payouts',     label: 'Driver Payouts',icon: Car },
   { href: '/admin/charge-items', label: 'Charge Items',  icon: Receipt, visibleTo: ['owner', 'manager'] },
+]
+
+const inventoryItems: NavItem[] = [
+  { href: '/inventory',           label: 'Overview',          icon: Package },
+  { href: '/inventory/prices',    label: 'Price Comparison',  icon: TrendingDown },
+  { href: '/inventory/orders',    label: 'Orders',            icon: ShoppingCart },
+  { href: '/inventory/items',     label: 'Products',          icon: Tag },
+  { href: '/inventory/suppliers', label: 'Suppliers',         icon: Building2 },
 ]
 
 const othersItems: NavItem[] = [
@@ -183,17 +196,19 @@ export function Sidebar() {
     return items.filter(i => !i.visibleTo || i.visibleTo.includes(role as Role))
   }
 
-  const visibleResidents = residentsItems  // All roles
-  const visibleTeam      = canViewWorkers(role) ? teamItems : []
-  const visibleBilling   = canAccessBilling(role) ? visible(billingItems) : []
-  const visibleReports   = canAccessReports(role) ? reportItems : []
-  const visibleOthers    = isElevated(role) ? visible(othersItems) : []
+  const visibleResidents  = residentsItems  // All roles
+  const visibleTeam       = canViewWorkers(role) ? teamItems : []
+  const visibleBilling    = canAccessBilling(role) ? visible(billingItems) : []
+  const visibleReports    = canAccessReports(role) ? reportItems : []
+  const visibleOthers     = isElevated(role) ? visible(othersItems) : []
+  const visibleInventory  = canAccessInventory(role) ? inventoryItems : []
 
-  const [residentsOpen, setResidentsOpen] = useState(residentsItems.some(i => isActive(i.href)))
-  const [teamOpen,      setTeamOpen]      = useState(teamItems.some(i => isActive(i.href)))
-  const [billingOpen,   setBillingOpen]   = useState(billingItems.some(i => isActive(i.href)))
-  const [othersOpen,    setOthersOpen]    = useState(othersItems.some(i => isActive(i.href)))
-  const [reportsOpen,   setReportsOpen]   = useState(reportItems.some(i => isActive(i.href)))
+  const [residentsOpen,  setResidentsOpen]  = useState(residentsItems.some(i => isActive(i.href)))
+  const [teamOpen,       setTeamOpen]       = useState(teamItems.some(i => isActive(i.href)))
+  const [billingOpen,    setBillingOpen]    = useState(billingItems.some(i => isActive(i.href)))
+  const [othersOpen,     setOthersOpen]     = useState(othersItems.some(i => isActive(i.href)))
+  const [reportsOpen,    setReportsOpen]    = useState(reportItems.some(i => isActive(i.href)))
+  const [inventoryOpen,  setInventoryOpen]  = useState(inventoryItems.some(i => isActive(i.href)))
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -282,6 +297,17 @@ export function Sidebar() {
             items={visibleBilling}
             open={billingOpen}
             onToggle={() => setBillingOpen(o => !o)}
+            collapsed={collapsed}
+            isActive={isActive}
+          />
+        )}
+
+        {visibleInventory.length > 0 && (
+          <CollapsibleGroup
+            label="Inventory"
+            items={visibleInventory}
+            open={inventoryOpen}
+            onToggle={() => setInventoryOpen(o => !o)}
             collapsed={collapsed}
             isActive={isActive}
           />

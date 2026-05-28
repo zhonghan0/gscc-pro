@@ -307,6 +307,153 @@ export type Database = {
         Relationships: []
       }
 
+      inventory_suppliers: {
+        Row: {
+          id: string
+          name: string
+          contact_person: string | null
+          phone: string | null
+          notes: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          contact_person?: string | null
+          phone?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          contact_person?: string | null
+          phone?: string | null
+          notes?: string | null
+          is_active?: boolean
+        }
+        Relationships: []
+      }
+
+      inventory_items: {
+        Row: {
+          id: string
+          category: 'diaper' | 'underpad' | 'wet_wipes' | 'others'
+          name: string
+          unit: string
+          notes: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          category: 'diaper' | 'underpad' | 'wet_wipes' | 'others'
+          name: string
+          unit?: string
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          category?: 'diaper' | 'underpad' | 'wet_wipes' | 'others'
+          name?: string
+          unit?: string
+          notes?: string | null
+          is_active?: boolean
+        }
+        Relationships: []
+      }
+
+      inventory_prices: {
+        Row: {
+          id: string
+          item_id: string
+          supplier_id: string
+          price: number
+          effective_date: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          supplier_id: string
+          price: number
+          effective_date?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          supplier_id?: string
+          price?: number
+          effective_date?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
+
+      inventory_orders: {
+        Row: {
+          id: string
+          order_date: string
+          supplier_id: string
+          status: 'pending' | 'received' | 'cancelled'
+          notes: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          order_date?: string
+          supplier_id: string
+          status?: 'pending' | 'received' | 'cancelled'
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          order_date?: string
+          supplier_id?: string
+          status?: 'pending' | 'received' | 'cancelled'
+          notes?: string | null
+          created_by?: string | null
+        }
+        Relationships: []
+      }
+
+      inventory_order_items: {
+        Row: {
+          id: string
+          order_id: string
+          item_id: string
+          quantity: number
+          unit_price: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          item_id: string
+          quantity: number
+          unit_price: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          item_id?: string
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: []
+      }
+
       bank_imports: {
         Row: {
           id: string
@@ -564,6 +711,70 @@ export type Database = {
       }
     }
   }
+}
+
+// ── Inventory convenience types ───────────────────────────────────────────────
+export type InventoryCategory = 'diaper' | 'underpad' | 'wet_wipes' | 'others'
+export type InventoryOrderStatus = 'pending' | 'received' | 'cancelled'
+
+export type InventorySupplier = {
+  id: string
+  name: string
+  contact_person: string | null
+  phone: string | null
+  notes: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export type InventoryItem = {
+  id: string
+  category: InventoryCategory
+  name: string
+  unit: string
+  notes: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export type InventoryPrice = {
+  id: string
+  item_id: string
+  supplier_id: string
+  price: number
+  effective_date: string
+  notes: string | null
+  created_at: string
+}
+
+export type InventoryOrder = {
+  id: string
+  order_date: string
+  supplier_id: string
+  status: InventoryOrderStatus
+  notes: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export type InventoryOrderItem = {
+  id: string
+  order_id: string
+  item_id: string
+  quantity: number
+  unit_price: number
+  created_at: string
+}
+
+export type InventoryOrderWithSupplier = InventoryOrder & {
+  inventory_suppliers: Pick<InventorySupplier, 'name'>
+}
+
+export type InventoryOrderDetail = InventoryOrder & {
+  inventory_suppliers: Pick<InventorySupplier, 'name'>
+  inventory_order_items: (InventoryOrderItem & {
+    inventory_items: Pick<InventoryItem, 'name' | 'unit' | 'category'>
+  })[]
 }
 
 export type Profile = Database['public']['Tables']['profiles']['Row']

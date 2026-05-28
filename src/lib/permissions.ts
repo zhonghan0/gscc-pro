@@ -58,6 +58,11 @@ export function canAccessReports(role: string | null | undefined): boolean {
   return role === 'owner' || role === 'manager' || role === 'billing'
 }
 
+/** Owner or Manager — can manage inventory */
+export function canAccessInventory(role: string | null | undefined): boolean {
+  return role === 'owner' || role === 'manager'
+}
+
 /**
  * Legacy alias: used throughout codebase as `isAdmin`.
  * Maps to isElevated (owner or manager) for backwards compatibility.
