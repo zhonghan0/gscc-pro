@@ -75,6 +75,9 @@ export async function resendInvite(staffId: string) {
     .eq('id', staffId)
     .single()
 
+  // Reset email confirmation so inviteUserByEmail won't reject an already-confirmed user
+  await adminClient.auth.admin.updateUserById(staffId, { email_confirm: false })
+
   const { error } = await adminClient.auth.admin.inviteUserByEmail(user.email!, {
     data: { full_name: profile?.full_name ?? '', role: profile?.role ?? 'care_staff' },
     redirectTo: `${siteUrl}/api/auth/callback?next=/activate`,
