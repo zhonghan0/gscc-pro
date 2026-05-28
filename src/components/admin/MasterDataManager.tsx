@@ -28,7 +28,7 @@ const CATEGORY_ORDER = [
   'Extra Charges',
   'Reports',
   'Export',
-  'Staff',
+  'Users',
   'Care Logs',
   'General',
 ]
