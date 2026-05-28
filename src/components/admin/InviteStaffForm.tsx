@@ -46,7 +46,7 @@ export function InviteStaffForm() {
           An activation email has been sent to <strong>{email}</strong>.<br />
           They will set their own password when they click the link.
         </p>
-        <Button variant="outline" onClick={() => router.push('/admin/staff')}>
+        <Button variant="outline" onClick={() => router.push('/admin/users')}>
           Back to Users
         </Button>
       </div>

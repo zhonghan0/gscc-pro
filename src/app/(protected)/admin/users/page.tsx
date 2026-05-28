@@ -23,7 +23,7 @@ export default async function StaffPage() {
       <Header
         title="User Management"
         action={
-          <Link href="/admin/staff/invite">
+          <Link href="/admin/users/invite">
             <Button size="sm">
               <UserPlus className="w-4 h-4" /> Add User
             </Button>

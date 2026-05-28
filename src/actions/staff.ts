@@ -48,8 +48,8 @@ export async function inviteStaff(formData: {
 
   if (error) throw new Error(error.message)
 
-  revalidatePath('/admin/staff')
-  redirect('/admin/staff')
+  revalidatePath('/admin/users')
+  redirect('/admin/users')
 }
 
 export async function updateStaffRole(staffId: string, role: Role) {
@@ -57,7 +57,7 @@ export async function updateStaffRole(staffId: string, role: Role) {
 
   const supabase = createClient()
   await supabase.from('profiles').update({ role }).eq('id', staffId)
-  revalidatePath('/admin/staff')
+  revalidatePath('/admin/users')
 }
 
 export async function resendInvite(staffId: string) {
@@ -87,12 +87,12 @@ export async function resendInvite(staffId: string) {
   })
   if (error) throw new Error(error.message)
 
-  revalidatePath('/admin/staff')
+  revalidatePath('/admin/users')
 }
 
 export async function deleteStaff(staffId: string) {
   await assertOwner()
   const adminClient = createAdminClient()
   await adminClient.auth.admin.deleteUser(staffId)
-  revalidatePath('/admin/staff')
+  revalidatePath('/admin/users')
 }

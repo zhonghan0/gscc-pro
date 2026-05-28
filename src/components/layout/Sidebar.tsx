@@ -60,7 +60,7 @@ const billingItems: NavItem[] = [
 const othersItems: NavItem[] = [
   { href: '/admin/import',      label: 'Import Data',  icon: FileUp },
   { href: '/admin/export',      label: 'Export Data',  icon: Download },
-  { href: '/admin/staff',       label: 'Users',        icon: Shield,           visibleTo: ['owner'] },
+  { href: '/admin/users',       label: 'Users',        icon: Shield,           visibleTo: ['owner'] },
   { href: '/admin/master-data', label: 'Master Data',  icon: SlidersHorizontal, visibleTo: ['owner'] },
 ]
 
