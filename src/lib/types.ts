@@ -13,18 +13,21 @@ export type Database = {
           full_name: string
           role: 'owner' | 'manager' | 'care_staff' | 'billing'
           created_at: string
+          activated_at: string | null
         }
         Insert: {
           id: string
           full_name: string
           role?: 'owner' | 'manager' | 'care_staff' | 'billing'
           created_at?: string
+          activated_at?: string | null
         }
         Update: {
           id?: string
           full_name?: string
           role?: 'owner' | 'manager' | 'care_staff' | 'billing'
           created_at?: string
+          activated_at?: string | null
         }
         Relationships: []
       }

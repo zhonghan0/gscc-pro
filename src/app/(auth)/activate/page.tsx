@@ -48,10 +48,13 @@ export default function ActivatePage() {
     const { error: pwErr } = await supabase.auth.updateUser({ password })
     if (pwErr) { setError(pwErr.message); setLoading(false); return }
 
-    // Update full name in metadata and profile if changed
+    // Update full name + mark as activated
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (fullName.trim()) {
       await supabase.auth.updateUser({ data: { full_name: fullName.trim() } })
-      await supabase.from('profiles').update({ full_name: fullName.trim() }).eq('id', (await supabase.auth.getUser()).data.user!.id)
+      await supabase.from('profiles').update({ full_name: fullName.trim(), activated_at: new Date().toISOString() }).eq('id', currentUser!.id)
+    } else {
+      await supabase.from('profiles').update({ activated_at: new Date().toISOString() }).eq('id', currentUser!.id)
     }
 
     setDone(true)

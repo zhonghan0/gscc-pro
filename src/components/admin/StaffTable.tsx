@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import type { Profile } from '@/lib/types'
-import { updateStaffRole, deleteStaff } from '@/actions/staff'
+import { updateStaffRole, deleteStaff, resendInvite } from '@/actions/staff'
 import { formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Trash2, KeyRound } from 'lucide-react'
+import { Trash2, KeyRound, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ROLES, ROLE_LABELS, ROLE_BADGE_CLASS, ROLE_DESCRIPTIONS, type Role } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
@@ -114,6 +114,17 @@ export function StaffTable({ staff, currentUserId, currentUserEmail }: StaffTabl
     setPending(null)
   }
 
+  const [resending, setResending] = useState<string | null>(null)
+  const [resent, setResent] = useState<string | null>(null)
+
+  async function handleResend(id: string) {
+    setResending(id)
+    await resendInvite(id)
+    setResending(null)
+    setResent(id)
+    setTimeout(() => setResent(null), 3000)
+  }
+
   return (
     <div className="space-y-4">
       {me && <MyAccountCard profile={me} email={currentUserEmail} />}
@@ -133,10 +144,15 @@ export function StaffTable({ staff, currentUserId, currentUserEmail }: StaffTabl
               <tr key={member.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-blue-700 font-semibold text-xs">{member.full_name.charAt(0).toUpperCase()}</span>
+                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', member.activated_at ? 'bg-blue-100' : 'bg-gray-100')}>
+                      <span className={cn('font-semibold text-xs', member.activated_at ? 'text-blue-700' : 'text-gray-400')}>{member.full_name.charAt(0).toUpperCase()}</span>
                     </div>
-                    <p className="font-medium text-gray-900">{member.full_name}</p>
+                    <div>
+                      <p className="font-medium text-gray-900">{member.full_name}</p>
+                      {!member.activated_at && (
+                        <span className="text-xs text-amber-600 font-medium">Pending activation</span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{formatDate(member.created_at)}</td>
@@ -168,14 +184,27 @@ export function StaffTable({ staff, currentUserId, currentUserEmail }: StaffTabl
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => handleDelete(member.id)}
-                    disabled={pending === member.id}
-                    className="text-gray-400 hover:text-red-500 disabled:opacity-50 transition-colors"
-                    aria-label="Remove user"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {!member.activated_at && (
+                      <button
+                        onClick={() => handleResend(member.id)}
+                        disabled={resending === member.id || resent === member.id}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-amber-300 text-amber-700 hover:bg-amber-50 disabled:opacity-50 transition-colors"
+                        title="Resend invitation email"
+                      >
+                        <MailCheck className="w-3 h-3" />
+                        {resent === member.id ? 'Sent!' : resending === member.id ? 'Sending…' : 'Resend invite'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(member.id)}
+                      disabled={pending === member.id}
+                      className="text-gray-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                      aria-label="Remove user"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

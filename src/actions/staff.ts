@@ -60,6 +60,28 @@ export async function updateStaffRole(staffId: string, role: Role) {
   revalidatePath('/admin/staff')
 }
 
+export async function resendInvite(staffId: string) {
+  await assertOwner()
+
+  const adminClient = createAdminClient()
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+
+  const { data: { user }, error: userErr } = await adminClient.auth.admin.getUserById(staffId)
+  if (userErr || !user) throw new Error('User not found')
+
+  const { data: profile } = await createClient()
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', staffId)
+    .single()
+
+  const { error } = await adminClient.auth.admin.inviteUserByEmail(user.email!, {
+    data: { full_name: profile?.full_name ?? '', role: profile?.role ?? 'care_staff' },
+    redirectTo: `${siteUrl}/api/auth/callback?next=/activate`,
+  })
+  if (error) throw new Error(error.message)
+}
+
 export async function deleteStaff(staffId: string) {
   await assertOwner()
   const adminClient = createAdminClient()
