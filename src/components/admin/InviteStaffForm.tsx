@@ -76,7 +76,7 @@ export function InviteStaffForm() {
             required
             value={email}
             onChange={e => setEmail(e.target.value)}
-            placeholder="staff@yourcentre.com"
+            placeholder="user@yourcentre.com"
             className="mt-1"
           />
         </div>
