@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
 import { PaymentsTable } from '@/components/payments/PaymentsTable'
 import { PaymentsCalendar } from '@/components/payments/PaymentsCalendar'
 import { Plus, Upload, LayoutGrid, List, EyeOff, Eye } from 'lucide-react'
+import { canAccessBilling, isElevated } from '@/lib/permissions'
 
 interface Props {
   searchParams: { view?: string; highlight?: string; show_inactive?: string }
@@ -18,7 +20,8 @@ export default async function PaymentsPage({ searchParams }: Props) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
-  const isAdmin = profile?.role === 'admin'
+  if (!canAccessBilling(profile?.role)) redirect('/dashboard')
+  const isAdmin = isElevated(profile?.role)
 
   const { data: payments } = await supabase
     .from('payments')

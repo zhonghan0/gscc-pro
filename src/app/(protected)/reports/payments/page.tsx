@@ -1,9 +1,14 @@
+import { redirect } from 'next/navigation'
+import { canAccessReports } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { PaymentReportClient } from '@/components/reports/PaymentReportClient'
 import { getSettings } from '@/lib/settings'
 
 export default async function PaymentReportPage() {
+  const { data: { user } } = await createClient().auth.getUser()
+  const { data: _profile } = await createClient().from('profiles').select('role').eq('id', user!.id).single()
+  if (!canAccessReports(_profile?.role)) redirect('/dashboard')
   const supabase = createClient()
 
   const [

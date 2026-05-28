@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { isElevated } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
@@ -9,7 +10,7 @@ export default async function CareLogsPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = isElevated(profile?.role)
 
   const { data: notes } = await supabase
     .from('care_notes')

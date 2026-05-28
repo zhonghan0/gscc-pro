@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/types'
+import { isElevated } from '@/lib/permissions'
 
 export function useUser() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -28,5 +29,5 @@ export function useUser() {
     load()
   }, [])
 
-  return { profile, loading, isAdmin: profile?.role === 'admin' }
+  return { profile, loading, isAdmin: isElevated(profile?.role) }
 }

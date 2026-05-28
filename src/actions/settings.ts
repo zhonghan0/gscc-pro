@@ -10,7 +10,7 @@ export async function updateSetting(key: string, value: string) {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') throw new Error('Unauthorized')
+  if (profile?.role !== 'owner') throw new Error('Unauthorized — only Owner can change settings')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)

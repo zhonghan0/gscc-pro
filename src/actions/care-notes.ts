@@ -1,3 +1,4 @@
+import { isElevated } from '@/lib/permissions'
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
@@ -58,7 +59,7 @@ export async function deleteCareNote(noteId: string, residentId: string) {
 
   // Only admins can delete
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') throw new Error('Unauthorized')
+  if (!isElevated(profile?.role)) throw new Error('Unauthorized')
 
   await supabase.from('care_notes').delete().eq('id', noteId)
   revalidatePath('/care-notes')

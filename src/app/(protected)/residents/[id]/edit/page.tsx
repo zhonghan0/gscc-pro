@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { isElevated } from '@/lib/permissions'
 import { Header } from '@/components/layout/Header'
 import { ResidentForm } from '@/components/residents/ResidentForm'
 import { DeleteButton } from '@/components/ui/DeleteButton'
@@ -12,7 +13,7 @@ export default async function EditResidentPage({ params }: { params: { id: strin
 
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
-  if (profile?.role !== 'admin') redirect(`/residents/${params.id}`)
+  if (!isElevated(profile?.role)) redirect(`/residents/${params.id}`)
 
   const [{ data: resident }, { data: workers }] = await Promise.all([
     supabase.from('residents').select('*').eq('id', params.id).single(),

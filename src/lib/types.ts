@@ -11,19 +11,19 @@ export type Database = {
         Row: {
           id: string
           full_name: string
-          role: 'admin' | 'staff'
+          role: 'owner' | 'manager' | 'care_staff' | 'billing'
           created_at: string
         }
         Insert: {
           id: string
           full_name: string
-          role?: 'admin' | 'staff'
+          role?: 'owner' | 'manager' | 'care_staff' | 'billing'
           created_at?: string
         }
         Update: {
           id?: string
           full_name?: string
-          role?: 'admin' | 'staff'
+          role?: 'owner' | 'manager' | 'care_staff' | 'billing'
           created_at?: string
         }
         Relationships: []

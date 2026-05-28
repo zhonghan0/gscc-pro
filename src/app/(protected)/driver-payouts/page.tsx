@@ -1,8 +1,13 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DriverPayoutPageClient } from '@/components/driver-payouts/DriverPayoutPageClient'
+import { canAccessBilling } from '@/lib/permissions'
 
 export default async function DriverPayoutsPage() {
   const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
+  if (!canAccessBilling(profile?.role)) redirect('/dashboard')
 
   const [{ data: payouts }, { data: allTrips }, { data: workers }] = await Promise.all([
     supabase

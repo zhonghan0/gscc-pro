@@ -1,3 +1,4 @@
+import { canAccessBilling } from '@/lib/permissions'
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
@@ -163,7 +164,7 @@ export async function deleteExtraCharge(id: string, residentId: string) {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') throw new Error('Unauthorized')
+  if (!canAccessBilling(profile?.role)) throw new Error('Unauthorized')
 
   const { error } = await supabase.from('extra_charges').delete().eq('id', id)
   if (error) throw new Error(error.message)

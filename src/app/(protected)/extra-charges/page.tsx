@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { ExtraChargesHub } from '@/components/extra-charges/ExtraChargesHub'
+import { canAccessBilling, isElevated } from '@/lib/permissions'
 
 export default async function ExtraChargesPage({
   searchParams,
@@ -62,7 +63,9 @@ export default async function ExtraChargesPage({
       .order('sort_order'),
   ])
 
-  const isAdmin = (profileData as { role: string } | null)?.role === 'admin'
+  const role = (profileData as { role: string } | null)?.role
+  if (!canAccessBilling(role)) redirect('/dashboard')
+  const isAdmin = isElevated(role)
 
   // Active first, then recently discharged (sorted by name within each group)
   const residents = [

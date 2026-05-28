@@ -27,36 +27,47 @@ import {
   BarChart2,
   SlidersHorizontal,
 } from 'lucide-react'
+import type { Role } from '@/lib/permissions'
+import { isElevated, canAccessBilling, canViewWorkers, canAccessReports, isOwner } from '@/lib/permissions'
+import { ROLE_LABELS, ROLE_BADGE_CLASS } from '@/lib/permissions'
 
-const residentsItems = [
+type NavItem = {
+  href: string
+  label: string
+  icon: React.ElementType
+  /** Roles that can see this item. Undefined = all authenticated roles. */
+  visibleTo?: Role[]
+}
+
+const residentsItems: NavItem[] = [
   { href: '/residents',  label: 'Residents', icon: Users },
-  { href: '/care-notes', label: 'Care Logs', icon: ClipboardList },
+  { href: '/care-notes', label: 'Care Logs',  icon: ClipboardList },
 ]
 
-const teamItems = [
+const teamItems: NavItem[] = [
   { href: '/admin/caregivers',    label: 'Caregiver',    icon: HeartHandshake },
   { href: '/admin/local-workers', label: 'Local Worker', icon: HardHat },
   { href: '/admin/positions',     label: 'Positions',    icon: Layers },
 ]
 
-const billingItems = [
-  { href: '/payments',             label: 'Payments',        icon: CreditCard },
-  { href: '/extra-charges',        label: 'Extra Charges',   icon: ReceiptText },
-  { href: '/driver-payouts',       label: 'Driver Payouts',  icon: Car },
-  { href: '/admin/charge-items',   label: 'Charge Items',    icon: Receipt,   adminOnly: true },
+const billingItems: NavItem[] = [
+  { href: '/payments',           label: 'Payments',      icon: CreditCard },
+  { href: '/extra-charges',      label: 'Extra Charges', icon: ReceiptText },
+  { href: '/driver-payouts',     label: 'Driver Payouts',icon: Car },
+  { href: '/admin/charge-items', label: 'Charge Items',  icon: Receipt, visibleTo: ['owner', 'manager'] },
 ]
 
-const othersItems = [
-  { href: '/admin/import',       label: 'Import Data',  icon: FileUp },
-  { href: '/admin/export',       label: 'Export Data',  icon: Download },
-  { href: '/admin/staff',        label: 'Users',        icon: Shield },
-  { href: '/admin/master-data',  label: 'Master Data',  icon: SlidersHorizontal, adminOnly: true },
+const othersItems: NavItem[] = [
+  { href: '/admin/import',      label: 'Import Data',  icon: FileUp },
+  { href: '/admin/export',      label: 'Export Data',  icon: Download },
+  { href: '/admin/staff',       label: 'Users',        icon: Shield,           visibleTo: ['owner'] },
+  { href: '/admin/master-data', label: 'Master Data',  icon: SlidersHorizontal, visibleTo: ['owner'] },
 ]
 
-const reportItems = [
-  { href: '/reports/residents', label: 'Residents',  icon: Users },
-  { href: '/reports/revenue',   label: 'Revenue',    icon: BarChart2 },
-  { href: '/reports/caregivers',label: 'Caregivers', icon: HeartHandshake },
+const reportItems: NavItem[] = [
+  { href: '/reports/residents',  label: 'Residents',  icon: Users },
+  { href: '/reports/revenue',    label: 'Revenue',    icon: BarChart2 },
+  { href: '/reports/caregivers', label: 'Caregivers', icon: HeartHandshake },
 ]
 
 function CountBadge({ count }: { count: number }) {
@@ -91,18 +102,19 @@ function NavLink({ href, label, icon: Icon, collapsed, active, count }: {
   )
 }
 
-// Extracted to module level so React never unmounts/remounts it on parent re-render
 function CollapsibleGroup({
   label, items, open, onToggle, collapsed, isActive, itemCounts,
 }: {
   label: string
-  items: { href: string; label: string; icon: React.ElementType }[]
+  items: NavItem[]
   open: boolean
   onToggle: () => void
   collapsed: boolean
   isActive: (href: string) => boolean
   itemCounts?: Record<string, number>
 }) {
+  if (items.length === 0) return null
+
   if (collapsed) {
     return (
       <>
@@ -162,25 +174,26 @@ function CollapsibleGroup({
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { collapsed, toggle, isAdmin, profile, counts } = useSidebar()
+  const { collapsed, toggle, role, profile, counts } = useSidebar()
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
-  const [residentsOpen, setResidentsOpen] = useState(
-    residentsItems.some(i => isActive(i.href))
-  )
-  const [teamOpen, setTeamOpen] = useState(
-    teamItems.some(i => isActive(i.href))
-  )
-  const [billingOpen, setBillingOpen] = useState(
-    billingItems.some(i => isActive(i.href))
-  )
-  const [othersOpen, setOthersOpen] = useState(
-    othersItems.some(i => isActive(i.href))
-  )
-  const [reportsOpen, setReportsOpen] = useState(
-    reportItems.some(i => isActive(i.href))
-  )
+  // Filter items a role can see
+  function visible(items: NavItem[]): NavItem[] {
+    return items.filter(i => !i.visibleTo || i.visibleTo.includes(role as Role))
+  }
+
+  const visibleResidents = residentsItems  // All roles
+  const visibleTeam      = canViewWorkers(role) ? teamItems : []
+  const visibleBilling   = canAccessBilling(role) ? visible(billingItems) : []
+  const visibleReports   = canAccessReports(role) ? reportItems : []
+  const visibleOthers    = isElevated(role) ? visible(othersItems) : []
+
+  const [residentsOpen, setResidentsOpen] = useState(residentsItems.some(i => isActive(i.href)))
+  const [teamOpen,      setTeamOpen]      = useState(teamItems.some(i => isActive(i.href)))
+  const [billingOpen,   setBillingOpen]   = useState(billingItems.some(i => isActive(i.href)))
+  const [othersOpen,    setOthersOpen]    = useState(othersItems.some(i => isActive(i.href)))
+  const [reportsOpen,   setReportsOpen]   = useState(reportItems.some(i => isActive(i.href)))
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -188,8 +201,12 @@ export function Sidebar() {
     router.push('/login')
   }
 
-  const visibleBilling = billingItems.filter(i => !i.adminOnly || isAdmin)
-  const visibleOthers  = othersItems.filter(i => !('adminOnly' in i) || isAdmin)
+  const roleLabel = role && role in ROLE_LABELS
+    ? ROLE_LABELS[role as Role]
+    : role ?? ''
+  const roleBadge = role && role in ROLE_BADGE_CLASS
+    ? ROLE_BADGE_CLASS[role as Role]
+    : 'bg-gray-100 text-gray-600'
 
   return (
     <aside className={cn(
@@ -234,10 +251,9 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-hidden">
 
-        {/* Residents group */}
         <CollapsibleGroup
           label="Residents"
-          items={residentsItems}
+          items={visibleResidents}
           open={residentsOpen}
           onToggle={() => setResidentsOpen(o => !o)}
           collapsed={collapsed}
@@ -245,44 +261,44 @@ export function Sidebar() {
           itemCounts={{ '/residents': counts.residents }}
         />
 
-        {/* Team group (admin only) */}
-        {isAdmin && (
+        {visibleTeam.length > 0 && (
           <CollapsibleGroup
             label="Team"
-            items={teamItems}
+            items={visibleTeam}
             open={teamOpen}
             onToggle={() => setTeamOpen(o => !o)}
             collapsed={collapsed}
             isActive={isActive}
             itemCounts={{
-              '/admin/caregivers': counts.caregivers,
+              '/admin/caregivers':    counts.caregivers,
               '/admin/local-workers': counts.localWorkers,
             }}
           />
         )}
 
-        {/* Billing group */}
-        <CollapsibleGroup
-          label="Billing"
-          items={visibleBilling}
-          open={billingOpen}
-          onToggle={() => setBillingOpen(o => !o)}
-          collapsed={collapsed}
-          isActive={isActive}
-        />
+        {visibleBilling.length > 0 && (
+          <CollapsibleGroup
+            label="Billing"
+            items={visibleBilling}
+            open={billingOpen}
+            onToggle={() => setBillingOpen(o => !o)}
+            collapsed={collapsed}
+            isActive={isActive}
+          />
+        )}
 
-        {/* Reports group */}
-        <CollapsibleGroup
-          label="Reports"
-          items={reportItems}
-          open={reportsOpen}
-          onToggle={() => setReportsOpen(o => !o)}
-          collapsed={collapsed}
-          isActive={isActive}
-        />
+        {visibleReports.length > 0 && (
+          <CollapsibleGroup
+            label="Reports"
+            items={visibleReports}
+            open={reportsOpen}
+            onToggle={() => setReportsOpen(o => !o)}
+            collapsed={collapsed}
+            isActive={isActive}
+          />
+        )}
 
-        {/* Others group (admin only) */}
-        {isAdmin && (
+        {visibleOthers.length > 0 && (
           <CollapsibleGroup
             label="Others"
             items={visibleOthers}
@@ -294,7 +310,7 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* User + Sign out */}
+      {/* User info + sign out */}
       <div className="px-2 py-4 border-t border-gray-200">
         {!collapsed && (
           <div className="flex items-center gap-3 px-3 py-2 mb-1">
@@ -305,7 +321,9 @@ export function Sidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name}</p>
-              <p className="text-xs text-gray-500 capitalize">{profile?.role}</p>
+              <span className={cn('text-xs font-medium px-1.5 py-0.5 rounded-full', roleBadge)}>
+                {roleLabel}
+              </span>
             </div>
           </div>
         )}

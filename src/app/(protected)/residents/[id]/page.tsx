@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { isElevated } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { StatusBadge } from '@/components/residents/StatusBadge'
@@ -84,7 +85,7 @@ export default async function ResidentProfilePage({ params }: { params: { id: st
   ])
 
   const profile = profileData as { role: string } | null
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = isElevated(profile?.role)
 
   const residentList = (allResidentsRaw ?? []) as { id: string; full_name: string }[]
   const currentIdx = residentList.findIndex(r => r.id === params.id)

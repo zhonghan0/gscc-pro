@@ -4,8 +4,9 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { isOwner, type Role } from '@/lib/permissions'
 
-async function assertAdmin() {
+async function assertOwner() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -16,25 +17,33 @@ async function assertAdmin() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') throw new Error('Unauthorized')
+  if (!isOwner(profile?.role)) throw new Error('Unauthorized — only Owner can manage users')
   return supabase
 }
 
-export async function inviteStaff(formData: { email: string; full_name: string; role: 'admin' | 'staff' }) {
-  await assertAdmin()
+export async function inviteStaff(formData: {
+  email: string
+  full_name: string
+  role: Role
+}) {
+  await assertOwner()
 
   const schema = z.object({
-    email: z.string().email(),
+    email:     z.string().email(),
     full_name: z.string().min(1),
-    role: z.enum(['admin', 'staff']),
+    role:      z.enum(['owner', 'manager', 'care_staff', 'billing']),
   })
   const parsed = schema.parse(formData)
 
   const adminClient = createAdminClient()
-  const { error } = await adminClient.auth.admin.createUser({
-    email: parsed.email,
-    email_confirm: true,
-    user_metadata: { full_name: parsed.full_name, role: parsed.role },
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+
+  const { error } = await adminClient.auth.admin.inviteUserByEmail(parsed.email, {
+    data: {
+      full_name: parsed.full_name,
+      role: parsed.role,
+    },
+    redirectTo: `${siteUrl}/api/auth/callback?next=/activate`,
   })
 
   if (error) throw new Error(error.message)
@@ -43,19 +52,16 @@ export async function inviteStaff(formData: { email: string; full_name: string; 
   redirect('/admin/staff')
 }
 
-export async function updateStaffRole(staffId: string, role: 'admin' | 'staff') {
-  const supabase = await assertAdmin()
+export async function updateStaffRole(staffId: string, role: Role) {
+  await assertOwner()
 
-  await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', staffId)
-
+  const supabase = createClient()
+  await supabase.from('profiles').update({ role }).eq('id', staffId)
   revalidatePath('/admin/staff')
 }
 
 export async function deleteStaff(staffId: string) {
-  await assertAdmin()
+  await assertOwner()
   const adminClient = createAdminClient()
   await adminClient.auth.admin.deleteUser(staffId)
   revalidatePath('/admin/staff')

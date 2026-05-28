@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { isElevated } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { CareNoteList } from '@/components/care-notes/CareNoteList'
@@ -26,7 +27,7 @@ export default async function ResidentCareNotesPage({ params }: { params: { id: 
       .order('note_date', { ascending: false }),
   ])
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = isElevated(profile?.role)
 
   return (
     <>

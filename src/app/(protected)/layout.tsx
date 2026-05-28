@@ -30,7 +30,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   }
 
   return (
-    <SidebarProvider isAdmin={profile?.role === 'admin'} profile={profile} counts={counts}>
+    <SidebarProvider profile={profile} counts={counts}>
       <div className="flex min-h-screen bg-gray-50">
         <div className="hidden lg:flex flex-shrink-0">
           <Sidebar />

@@ -1,3 +1,4 @@
+import { isElevated } from '@/lib/permissions'
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
@@ -43,7 +44,7 @@ async function assertAdmin() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  if (!isElevated(profile?.role)) {
     throw new Error('Unauthorized: admin only')
   }
 

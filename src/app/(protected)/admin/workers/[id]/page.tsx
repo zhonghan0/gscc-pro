@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { isElevated } from '@/lib/permissions'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
@@ -40,7 +41,7 @@ export default async function WorkerProfilePage({ params }: { params: { id: stri
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
-  if (profile?.role !== 'admin') redirect('/dashboard')
+  if (!isElevated(profile?.role)) redirect('/dashboard')
 
   const { data: workerRaw } = await supabase
     .from('workers').select('*, positions(name)').eq('id', params.id).single()

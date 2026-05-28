@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { isElevated } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { ResidentTable } from '@/components/residents/ResidentTable'
@@ -19,7 +20,7 @@ export default async function ResidentsPage() {
     .eq('id', user!.id)
     .single()
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = isElevated(profile?.role)
 
   return (
     <>

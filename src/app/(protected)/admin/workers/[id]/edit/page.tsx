@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { isElevated } from '@/lib/permissions'
 import { Header } from '@/components/layout/Header'
 import { WorkerForm } from '@/components/workers/WorkerForm'
 import { DeleteButton } from '@/components/ui/DeleteButton'
@@ -10,7 +11,7 @@ export default async function EditWorkerPage({ params }: { params: { id: string 
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
-  if (profile?.role !== 'admin') redirect('/dashboard')
+  if (!isElevated(profile?.role)) redirect('/dashboard')
 
   const [{ data: worker }, { data: positions }] = await Promise.all([
     supabase.from('workers').select('*').eq('id', params.id).single(),
