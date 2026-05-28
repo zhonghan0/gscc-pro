@@ -14,7 +14,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   owner:      'Full system access — user management, settings, and all features',
   manager:    'Manage residents, billing, workers, and view reports',
-  care_staff: 'View residents and workers, and log care notes',
+  care_staff: 'View residents and log care notes',
   billing:    'Manage payments, extra charges, driver payouts, and export data',
 }
 
@@ -48,9 +48,9 @@ export function canAccessCareNotes(role: string | null | undefined): boolean {
   return role === 'owner' || role === 'manager' || role === 'care_staff'
 }
 
-/** Owner, Manager, or Care Staff — can view workers/caregivers */
+/** Owner or Manager only — can view workers/caregivers */
 export function canViewWorkers(role: string | null | undefined): boolean {
-  return role === 'owner' || role === 'manager' || role === 'care_staff'
+  return role === 'owner' || role === 'manager'
 }
 
 /** Owner, Manager, or Billing — can view reports */

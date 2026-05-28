@@ -39,7 +39,7 @@ const PERMISSIONS: PermRow[] = [
   { label: 'Export data',              owner: 'full', manager: 'full', care_staff: 'none', billing: 'full' },
 
   { section: 'Workers', label: '', owner: 'none', manager: 'none', care_staff: 'none', billing: 'none' },
-  { label: 'View caregivers & workers',owner: 'full', manager: 'full', care_staff: 'full', billing: 'none' },
+  { label: 'View caregivers & workers',owner: 'full', manager: 'full', care_staff: 'none', billing: 'none' },
   { label: 'Add / edit workers',       owner: 'full', manager: 'full', care_staff: 'none', billing: 'none' },
   { label: 'Import workers',           owner: 'full', manager: 'full', care_staff: 'none', billing: 'none' },
 
