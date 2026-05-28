@@ -20,16 +20,14 @@ export default function ActivatePage() {
   const [ready, setReady]       = useState(false)
 
   useEffect(() => {
+    // Pre-fill name from session metadata if available.
+    // Always show the form — access is already controlled by middleware + protected layout.
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace('/login')
-        return
-      }
-      setFullName(user.user_metadata?.full_name ?? '')
+      if (user) setFullName(user.user_metadata?.full_name ?? '')
       setReady(true)
     })
-  }, [router])
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
