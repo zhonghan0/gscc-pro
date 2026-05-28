@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 
 export async function activateAccount(data: {
   password: string
@@ -24,5 +25,6 @@ export async function activateAccount(data: {
     await supabase.from('profiles').update({ activated_at: now }).eq('id', user.id)
   }
 
+  revalidatePath('/', 'layout')
   return {}
 }

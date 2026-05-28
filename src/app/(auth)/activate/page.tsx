@@ -46,7 +46,7 @@ export default function ActivatePage() {
     }
 
     setDone(true)
-    setTimeout(() => router.push('/dashboard'), 2000)
+    setTimeout(() => { window.location.href = '/dashboard' }, 2000)
   }
 
   if (!ready) {
