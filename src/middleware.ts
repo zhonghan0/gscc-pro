@@ -29,9 +29,10 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
-  const isAuthApi = request.nextUrl.pathname.startsWith('/api/auth')
+  const isAuthApi  = request.nextUrl.pathname.startsWith('/api/auth')
+  const isActivate = request.nextUrl.pathname.startsWith('/activate')
 
-  if (!user && !isAuthPage && !isAuthApi) {
+  if (!user && !isAuthPage && !isAuthApi && !isActivate) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     // Copy session cookies from supabaseResponse to the redirect
