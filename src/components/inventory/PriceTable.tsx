@@ -239,7 +239,7 @@ export function PriceTable({ suppliers, items, prices: initialPrices }: Props) {
                                 </div>
                                 {isDiaper && totalPcs && editValue && (
                                   <p className="text-xs text-blue-500 mt-1">
-                                    ≈ RM {(parseFloat(editValue) / totalPcs).toFixed(4)}/pc
+                                    ≈ RM {(parseFloat(editValue) / totalPcs).toFixed(2)}/pc
                                   </p>
                                 )}
                               </td>
@@ -269,7 +269,7 @@ export function PriceTable({ suppliers, items, prices: initialPrices }: Props) {
                                   {/* Per-piece price for diapers */}
                                   {isDiaper && pricePerPc !== null && (
                                     <p className={cn('text-xs mt-0.5 font-semibold', isCheapest ? 'text-green-600' : 'text-gray-500')}>
-                                      {isCheapest && '★ '}RM {pricePerPc.toFixed(4)}/pc
+                                      {isCheapest && '★ '}RM {pricePerPc.toFixed(2)}/pc
                                     </p>
                                   )}
                                 </div>
