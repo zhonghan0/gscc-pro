@@ -21,7 +21,6 @@ export default function ActivatePage() {
   const [sessionOk, setSessionOk]     = useState(false)
 
   useEffect(() => {
-    // Check that the user landed here from a valid invite link (i.e. has a session)
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
@@ -29,6 +28,9 @@ export default function ActivatePage() {
         const name = user.user_metadata?.full_name ?? ''
         setFullName(name)
         setSessionOk(true)
+      } else {
+        // No session — redirect to login
+        window.location.href = '/login'
       }
       setChecking(false)
     })
@@ -101,8 +103,8 @@ export default function ActivatePage() {
           <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4">
             <Heart className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Activate your account</h1>
-          <p className="text-sm text-gray-500 mt-1">Set your password to get started</p>
+          <h1 className="text-2xl font-bold text-gray-900">Set your password</h1>
+          <p className="text-sm text-gray-500 mt-1">Choose a new password to activate your account</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">

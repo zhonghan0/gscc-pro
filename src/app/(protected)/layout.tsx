@@ -15,13 +15,16 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     { count: caregiverCount },
     { count: localWorkerCount },
   ] = await Promise.all([
-    supabase.from('profiles').select('full_name, role').eq('id', user.id).single(),
+    supabase.from('profiles').select('full_name, role, activated_at').eq('id', user.id).single(),
     supabase.from('residents').select('*', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('workers').select('*', { count: 'exact', head: true })
       .eq('worker_type', 'foreign').eq('status', 'active').not('passport_permit_date', 'is', null),
     supabase.from('workers').select('*', { count: 'exact', head: true })
       .eq('worker_type', 'local').eq('status', 'active'),
   ])
+
+  // Force unactivated users to set their own password before accessing the app
+  if (!profile?.activated_at) redirect('/activate')
 
   const counts = {
     residents:   residentCount   ?? 0,

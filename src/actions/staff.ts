@@ -21,11 +21,17 @@ async function assertOwner() {
   return supabase
 }
 
-export async function inviteStaff(formData: {
+function generateTempPassword(): string {
+  // Unambiguous characters (no 0/O, 1/l/I)
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
+
+export async function createUser(formData: {
   email: string
   full_name: string
   role: Role
-}) {
+}): Promise<{ tempPassword: string }> {
   await assertOwner()
 
   const schema = z.object({
@@ -35,21 +41,41 @@ export async function inviteStaff(formData: {
   })
   const parsed = schema.parse(formData)
 
+  const tempPassword = generateTempPassword()
   const adminClient = createAdminClient()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
-  const { error } = await adminClient.auth.admin.inviteUserByEmail(parsed.email, {
-    data: {
+  const { error } = await adminClient.auth.admin.createUser({
+    email: parsed.email,
+    password: tempPassword,
+    email_confirm: true,           // skip email verification entirely
+    user_metadata: {
       full_name: parsed.full_name,
       role: parsed.role,
     },
-    redirectTo: `${siteUrl}/api/auth/callback?next=/activate`,
   })
 
   if (error) throw new Error(error.message)
 
   revalidatePath('/admin/users')
-  redirect('/admin/users')
+  return { tempPassword }
+}
+
+export async function resetUserPassword(staffId: string): Promise<{ tempPassword: string }> {
+  await assertOwner()
+
+  const tempPassword = generateTempPassword()
+  const adminClient = createAdminClient()
+
+  const { error } = await adminClient.auth.admin.updateUserById(staffId, {
+    password: tempPassword,
+  })
+  if (error) throw new Error(error.message)
+
+  // Also clear activated_at so user is forced to change password on next login
+  await createClient().from('profiles').update({ activated_at: null }).eq('id', staffId)
+
+  revalidatePath('/admin/users')
+  return { tempPassword }
 }
 
 export async function updateStaffRole(staffId: string, role: Role) {
@@ -57,36 +83,6 @@ export async function updateStaffRole(staffId: string, role: Role) {
 
   const supabase = createClient()
   await supabase.from('profiles').update({ role }).eq('id', staffId)
-  revalidatePath('/admin/users')
-}
-
-export async function resendInvite(staffId: string) {
-  await assertOwner()
-
-  const adminClient = createAdminClient()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
-
-  // Get the user's email and profile before deleting
-  const { data: { user }, error: userErr } = await adminClient.auth.admin.getUserById(staffId)
-  if (userErr || !user) throw new Error('User not found')
-
-  const { data: profile } = await createClient()
-    .from('profiles')
-    .select('full_name, role')
-    .eq('id', staffId)
-    .single()
-
-  // Supabase rejects inviteUserByEmail if the email is already confirmed (even for
-  // unactivated users who clicked a broken link). The only reliable fix is to delete
-  // and re-invite — the handle_new_user trigger recreates the profile automatically.
-  await adminClient.auth.admin.deleteUser(staffId)
-
-  const { error } = await adminClient.auth.admin.inviteUserByEmail(user.email!, {
-    data: { full_name: profile?.full_name ?? '', role: profile?.role ?? 'care_staff' },
-    redirectTo: `${siteUrl}/api/auth/callback?next=/activate`,
-  })
-  if (error) throw new Error(error.message)
-
   revalidatePath('/admin/users')
 }
 

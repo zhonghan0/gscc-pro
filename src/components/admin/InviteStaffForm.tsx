@@ -2,52 +2,85 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { inviteStaff } from '@/actions/staff'
+import { createUser } from '@/actions/staff'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { ROLES, ROLE_LABELS, ROLE_DESCRIPTIONS, ROLE_BADGE_CLASS, type Role } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
-import { Mail, Check } from 'lucide-react'
+import { Copy, Check, UserPlus } from 'lucide-react'
 
 export function InviteStaffForm() {
   const router = useRouter()
-  const [email, setEmail]       = useState('')
-  const [fullName, setFullName] = useState('')
-  const [role, setRole]         = useState<Role>('care_staff')
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
-  const [done, setDone]         = useState(false)
+  const [email, setEmail]         = useState('')
+  const [fullName, setFullName]   = useState('')
+  const [role, setRole]           = useState<Role>('care_staff')
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+  const [tempPassword, setTempPassword] = useState('')
+  const [copied, setCopied]       = useState(false)
 
-  // Owners can invite any role except another owner
-  const invitableRoles = ROLES.filter(r => r !== 'owner')
+  const creatableRoles = ROLES.filter(r => r !== 'owner')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
     try {
-      await inviteStaff({ email, full_name: fullName, role })
-      setDone(true)
+      const result = await createUser({ email, full_name: fullName, role })
+      setTempPassword(result.tempPassword)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
       setLoading(false)
     }
   }
 
-  if (done) {
+  function handleCopy() {
+    navigator.clipboard.writeText(tempPassword)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (tempPassword) {
     return (
-      <div className="text-center py-10 space-y-3">
-        <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-          <Check className="w-7 h-7 text-green-600" />
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+            <UserPlus className="w-7 h-7 text-green-600" />
+          </div>
+          <p className="font-semibold text-gray-900">User created!</p>
+          <p className="text-sm text-gray-500">
+            Share these login credentials with <strong>{fullName}</strong> securely (e.g. WhatsApp).
+            They will be asked to set a new password on first login.
+          </p>
         </div>
-        <p className="font-semibold text-gray-900">Invitation sent!</p>
-        <p className="text-sm text-gray-500">
-          An activation email has been sent to <strong>{email}</strong>.<br />
-          They will set their own password when they click the link.
-        </p>
-        <Button variant="outline" onClick={() => router.push('/admin/users')}>
-          Back to Users
+
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Email</p>
+            <p className="text-sm font-mono text-gray-900">{email}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Temporary Password</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-mono font-bold text-gray-900 bg-white border border-gray-300 rounded-lg px-3 py-2 flex-1 tracking-widest">
+                {tempPassword}
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={handleCopy} className="flex-shrink-0">
+                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+          <p className="text-sm text-amber-800">
+            ⚠️ This password won't be shown again. Make sure to copy and share it now.
+          </p>
+        </div>
+
+        <Button className="w-full" onClick={() => router.push('/admin/users')}>
+          Done
         </Button>
       </div>
     )
@@ -84,7 +117,7 @@ export function InviteStaffForm() {
         <div>
           <Label className="mb-2 block">Role <span className="text-red-500">*</span></Label>
           <div className="space-y-2">
-            {invitableRoles.map(r => (
+            {creatableRoles.map(r => (
               <label
                 key={r}
                 className={cn(
@@ -117,13 +150,6 @@ export function InviteStaffForm() {
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
-        <Mail className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-blue-800">
-          An invitation email will be sent to the address above. The user will click the link to set their own password and activate their account.
-        </p>
-      </div>
-
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
           {error}
@@ -135,7 +161,7 @@ export function InviteStaffForm() {
           Cancel
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? 'Sending invite…' : 'Send Invitation'}
+          {loading ? 'Creating…' : 'Create User'}
         </Button>
       </div>
     </form>

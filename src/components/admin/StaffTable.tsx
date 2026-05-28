@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import type { Profile } from '@/lib/types'
-import { updateStaffRole, deleteStaff, resendInvite } from '@/actions/staff'
+import { updateStaffRole, deleteStaff, resetUserPassword } from '@/actions/staff'
 import { formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Trash2, KeyRound, MailCheck } from 'lucide-react'
+import { Trash2, KeyRound, Copy, Check, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ROLES, ROLE_LABELS, ROLE_BADGE_CLASS, ROLE_DESCRIPTIONS, type Role } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
@@ -93,6 +93,51 @@ function MyAccountCard({ profile, email }: { profile: Profile; email: string }) 
   )
 }
 
+function ResetPasswordButton({ memberId }: { memberId: string }) {
+  const [loading, setLoading] = useState(false)
+  const [tempPassword, setTempPassword] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  async function handleReset() {
+    if (!confirm('Reset this user\'s password? They will need the new temporary password to log in.')) return
+    setLoading(true)
+    const result = await resetUserPassword(memberId)
+    setTempPassword(result.tempPassword)
+    setLoading(false)
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(tempPassword)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (tempPassword) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-xs font-mono font-bold text-gray-800 bg-amber-50 border border-amber-200 rounded px-2 py-1 tracking-wider">
+          {tempPassword}
+        </span>
+        <button onClick={handleCopy} className="text-gray-400 hover:text-gray-600 transition-colors" title="Copy password">
+          {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={handleReset}
+      disabled={loading}
+      className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+      title="Reset password"
+    >
+      <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
+      {loading ? 'Resetting…' : 'Reset password'}
+    </button>
+  )
+}
+
 export function StaffTable({ staff, currentUserId, currentUserEmail }: StaffTableProps) {
   const [pending, setPending] = useState<string | null>(null)
   const [roleEditing, setRoleEditing] = useState<string | null>(null)
@@ -112,17 +157,6 @@ export function StaffTable({ staff, currentUserId, currentUserEmail }: StaffTabl
     setPending(id)
     await deleteStaff(id)
     setPending(null)
-  }
-
-  const [resending, setResending] = useState<string | null>(null)
-  const [resent, setResent] = useState<string | null>(null)
-
-  async function handleResend(id: string) {
-    setResending(id)
-    await resendInvite(id)
-    setResending(null)
-    setResent(id)
-    setTimeout(() => setResent(null), 3000)
   }
 
   return (
@@ -185,17 +219,7 @@ export function StaffTable({ staff, currentUserId, currentUserEmail }: StaffTabl
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    {!member.activated_at && (
-                      <button
-                        onClick={() => handleResend(member.id)}
-                        disabled={resending === member.id || resent === member.id}
-                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-amber-300 text-amber-700 hover:bg-amber-50 disabled:opacity-50 transition-colors"
-                        title="Resend invitation email"
-                      >
-                        <MailCheck className="w-3 h-3" />
-                        {resent === member.id ? 'Sent!' : resending === member.id ? 'Sending…' : 'Resend invite'}
-                      </button>
-                    )}
+                    <ResetPasswordButton memberId={member.id} />
                     <button
                       onClick={() => handleDelete(member.id)}
                       disabled={pending === member.id}
