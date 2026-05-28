@@ -17,7 +17,7 @@ export default async function NewOrderPage() {
     { data: prices },
   ] = await Promise.all([
     supabase.from('inventory_suppliers').select('id, name').eq('is_active', true).order('name'),
-    supabase.from('inventory_items').select('id, name, category, unit').eq('is_active', true).order('category').order('name'),
+    supabase.from('inventory_items').select('*').eq('is_active', true).order('category').order('name'),
     supabase.from('inventory_prices').select('item_id, supplier_id, price'),
   ])
 

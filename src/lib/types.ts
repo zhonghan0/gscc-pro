@@ -346,6 +346,11 @@ export type Database = {
           notes: string | null
           is_active: boolean
           created_at: string
+          brand: string | null
+          diaper_type: 'tape' | 'pant' | null
+          size: string | null
+          bags_per_carton: number | null
+          pcs_per_bag: number | null
         }
         Insert: {
           id?: string
@@ -355,6 +360,11 @@ export type Database = {
           notes?: string | null
           is_active?: boolean
           created_at?: string
+          brand?: string | null
+          diaper_type?: 'tape' | 'pant' | null
+          size?: string | null
+          bags_per_carton?: number | null
+          pcs_per_bag?: number | null
         }
         Update: {
           id?: string
@@ -363,6 +373,11 @@ export type Database = {
           unit?: string
           notes?: string | null
           is_active?: boolean
+          brand?: string | null
+          diaper_type?: 'tape' | 'pant' | null
+          size?: string | null
+          bags_per_carton?: number | null
+          pcs_per_bag?: number | null
         }
         Relationships: []
       }
@@ -735,6 +750,11 @@ export type InventoryItem = {
   notes: string | null
   is_active: boolean
   created_at: string
+  brand: string | null
+  diaper_type: 'tape' | 'pant' | null
+  size: string | null
+  bags_per_carton: number | null
+  pcs_per_bag: number | null
 }
 
 export type InventoryPrice = {

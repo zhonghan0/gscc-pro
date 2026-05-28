@@ -67,6 +67,11 @@ export async function createItem(data: {
   name: string
   unit: string
   notes?: string
+  brand?: string
+  diaper_type?: 'tape' | 'pant' | null
+  size?: string
+  bags_per_carton?: number | null
+  pcs_per_bag?: number | null
 }) {
   const { supabase } = await assertElevated()
   const { error } = await supabase.from('inventory_items').insert({
@@ -74,6 +79,11 @@ export async function createItem(data: {
     name: data.name,
     unit: data.unit,
     notes: data.notes || null,
+    brand: data.brand || null,
+    diaper_type: data.diaper_type || null,
+    size: data.size || null,
+    bags_per_carton: data.bags_per_carton || null,
+    pcs_per_bag: data.pcs_per_bag || null,
   })
   if (error) throw new Error(error.message)
   revalidatePath('/inventory/items')
@@ -85,6 +95,11 @@ export async function updateItem(id: string, data: {
   name: string
   unit: string
   notes?: string
+  brand?: string
+  diaper_type?: 'tape' | 'pant' | null
+  size?: string
+  bags_per_carton?: number | null
+  pcs_per_bag?: number | null
 }) {
   const { supabase } = await assertElevated()
   const { error } = await supabase.from('inventory_items').update({
@@ -92,6 +107,11 @@ export async function updateItem(id: string, data: {
     name: data.name,
     unit: data.unit,
     notes: data.notes || null,
+    brand: data.brand || null,
+    diaper_type: data.diaper_type || null,
+    size: data.size || null,
+    bags_per_carton: data.bags_per_carton || null,
+    pcs_per_bag: data.pcs_per_bag || null,
   }).eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/inventory/items')

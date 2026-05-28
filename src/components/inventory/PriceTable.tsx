@@ -19,8 +19,15 @@ const CATEGORY_BADGE: Record<InventoryCategory, string> = {
 
 interface Props {
   suppliers: Pick<InventorySupplier, 'id' | 'name'>[]
-  items: Pick<InventoryItem, 'id' | 'name' | 'category' | 'unit'>[]
+  items: InventoryItem[]
   prices: InventoryPrice[]
+}
+
+function calcPricePerPc(price: number, item: InventoryItem): number | null {
+  if (item.category !== 'diaper') return null
+  const total = (item.bags_per_carton ?? 0) * (item.pcs_per_bag ?? 0)
+  if (total <= 0) return null
+  return price / total
 }
 
 export function PriceTable({ suppliers, items, prices: initialPrices }: Props) {
@@ -33,9 +40,20 @@ export function PriceTable({ suppliers, items, prices: initialPrices }: Props) {
     return prices.find(p => p.item_id === itemId && p.supplier_id === supplierId)
   }
 
-  function getMinPrice(itemId: string): number | null {
-    const ps = prices.filter(p => p.item_id === itemId).map(p => p.price)
-    return ps.length > 0 ? Math.min(...ps) : null
+  // For diapers: compare by price/pc; for others: compare by price/unit
+  function getComparableValue(price: number, item: InventoryItem): number {
+    if (item.category === 'diaper') {
+      const ppc = calcPricePerPc(price, item)
+      return ppc ?? price
+    }
+    return price
+  }
+
+  function getMinComparable(item: InventoryItem): number | null {
+    const ps = prices.filter(p => p.item_id === item.id)
+    if (ps.length < 2) return null // need at least 2 to highlight best
+    const vals = ps.map(p => getComparableValue(p.price, item))
+    return Math.min(...vals)
   }
 
   function startEdit(itemId: string, supplierId: string) {
@@ -112,15 +130,17 @@ export function PriceTable({ suppliers, items, prices: initialPrices }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-500">Click any cell to enter or update a price. The lowest price per product is highlighted in green.</p>
+      <p className="text-sm text-gray-500">
+        Click any cell to enter or update a price. For diapers, ★ marks the cheapest <strong>price per piece</strong> across suppliers.
+      </p>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-auto">
         <table className="text-sm w-full min-w-max">
           <thead className="sticky top-0 bg-white border-b border-gray-200 z-10">
             <tr>
-              <th className="text-left px-5 py-3 font-medium text-gray-600 min-w-[200px]">Product</th>
+              <th className="text-left px-5 py-3 font-medium text-gray-600 min-w-[220px]">Product</th>
               {suppliers.map(s => (
-                <th key={s.id} className="px-4 py-3 text-center font-medium text-gray-600 min-w-[120px]">
+                <th key={s.id} className="px-4 py-3 text-center font-medium text-gray-600 min-w-[140px]">
                   {s.name}
                 </th>
               ))}
@@ -130,87 +150,147 @@ export function PriceTable({ suppliers, items, prices: initialPrices }: Props) {
             {CATEGORY_ORDER.map(cat => {
               const catItems = items.filter(i => i.category === cat)
               if (catItems.length === 0) return null
+
+              // For diapers: group into Tape → Pant → Unspecified
+              const groups: { label: string | null; rows: InventoryItem[] }[] =
+                cat === 'diaper'
+                  ? [
+                      { label: 'Tape',        rows: catItems.filter(i => i.diaper_type === 'tape') },
+                      { label: 'Pant',        rows: catItems.filter(i => i.diaper_type === 'pant') },
+                      { label: 'Unspecified', rows: catItems.filter(i => !i.diaper_type) },
+                    ].filter(g => g.rows.length > 0)
+                  : [{ label: null, rows: catItems }]
+
               return [
-                <tr key={`section-${cat}`} className="bg-gray-50">
-                  <td colSpan={suppliers.length + 1} className={cn('px-5 py-2 text-xs font-semibold uppercase tracking-wider', CATEGORY_BADGE[cat])}>
+                // Category header
+                <tr key={`cat-${cat}`} className={cn('border-t border-gray-100', CATEGORY_BADGE[cat])}>
+                  <td colSpan={suppliers.length + 1} className={cn('px-5 py-2 text-xs font-bold uppercase tracking-wider', CATEGORY_BADGE[cat])}>
                     {CATEGORY_LABELS[cat]}
                   </td>
                 </tr>,
-                ...catItems.map(item => {
-                  const minPrice = getMinPrice(item.id)
-                  return (
-                    <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50/50">
-                      <td className="px-5 py-3">
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <p className="text-xs text-gray-400">per {item.unit}</p>
+                ...groups.flatMap(group => [
+                  // Sub-group header for diaper types
+                  group.label && (
+                    <tr key={`sub-${cat}-${group.label}`} className="bg-gray-50/80 border-t border-gray-100">
+                      <td colSpan={suppliers.length + 1} className="px-7 py-1.5 text-xs font-semibold text-gray-500 italic">
+                        {group.label}
                       </td>
-                      {suppliers.map(s => {
-                        const priceEntry = getPrice(item.id, s.id)
-                        const isEditing = editing?.itemId === item.id && editing?.supplierId === s.id
-                        const isCheapest = priceEntry && minPrice !== null && priceEntry.price === minPrice && prices.filter(p => p.item_id === item.id).length > 1
+                    </tr>
+                  ),
+                  // Item rows
+                  ...group.rows.map(item => {
+                    const isDiaper = item.category === 'diaper'
+                    const minComparable = getMinComparable(item)
+                    const totalPcs = isDiaper && item.bags_per_carton && item.pcs_per_bag
+                      ? item.bags_per_carton * item.pcs_per_bag
+                      : null
 
-                        if (isEditing) {
+                    return (
+                      <tr key={item.id} className="border-t border-gray-100 hover:bg-gray-50/50">
+                        <td className="px-5 py-3">
+                          <p className="font-medium text-gray-900">{item.name}</p>
+                          <div className="flex flex-wrap gap-1.5 mt-0.5">
+                            {item.brand && (
+                              <span className="text-xs text-gray-500">{item.brand}</span>
+                            )}
+                            {item.diaper_type && (
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${item.diaper_type === 'tape' ? 'bg-orange-100 text-orange-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                                {item.diaper_type.charAt(0).toUpperCase() + item.diaper_type.slice(1)}
+                              </span>
+                            )}
+                            {item.size && (
+                              <span className="text-xs text-gray-400">Size {item.size}</span>
+                            )}
+                          </div>
+                          {isDiaper && totalPcs && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {item.bags_per_carton} bags × {item.pcs_per_bag} pcs = {totalPcs} pcs/ctn
+                            </p>
+                          )}
+                        </td>
+                        {suppliers.map(s => {
+                          const priceEntry = getPrice(item.id, s.id)
+                          const isEditing = editing?.itemId === item.id && editing?.supplierId === s.id
+                          const comparable = priceEntry ? getComparableValue(priceEntry.price, item) : null
+                          const isCheapest = comparable !== null && minComparable !== null && comparable === minComparable
+                          const pricePerPc = priceEntry ? calcPricePerPc(priceEntry.price, item) : null
+
+                          if (isEditing) {
+                            return (
+                              <td key={s.id} className="px-2 py-2 text-center">
+                                <div className="flex items-center gap-1 justify-center">
+                                  <span className="text-xs text-gray-400">RM</span>
+                                  <input
+                                    autoFocus
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    className="w-20 border border-blue-400 rounded px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={editValue}
+                                    onChange={e => setEditValue(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }}
+                                  />
+                                  <button onClick={saveEdit} disabled={saving} className="p-1 rounded text-green-600 hover:bg-green-50">
+                                    <Check className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={cancelEdit} className="p-1 rounded text-gray-400 hover:bg-gray-100">
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                {isDiaper && totalPcs && editValue && (
+                                  <p className="text-xs text-blue-500 mt-1">
+                                    ≈ RM {(parseFloat(editValue) / totalPcs).toFixed(4)}/pc
+                                  </p>
+                                )}
+                              </td>
+                            )
+                          }
+
                           return (
-                            <td key={s.id} className="px-2 py-2 text-center">
-                              <div className="flex items-center gap-1 justify-center">
-                                <input
-                                  autoFocus
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  className="w-20 border border-blue-400 rounded px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  value={editValue}
-                                  onChange={e => setEditValue(e.target.value)}
-                                  onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }}
-                                />
-                                <button onClick={saveEdit} disabled={saving} className="p-1 rounded text-green-600 hover:bg-green-50">
-                                  <Check className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={cancelEdit} className="p-1 rounded text-gray-400 hover:bg-gray-100">
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          )
-                        }
-
-                        return (
-                          <td key={s.id} className={cn('px-4 py-3 text-center group cursor-pointer', isCheapest && 'bg-green-50')}>
-                            <div
-                              className="flex items-center justify-center gap-1"
+                            <td
+                              key={s.id}
+                              className={cn('px-4 py-3 text-center group cursor-pointer transition-colors', isCheapest && 'bg-green-50')}
                               onClick={() => startEdit(item.id, s.id)}
                             >
                               {priceEntry ? (
-                                <>
-                                  <span className={cn('font-medium', isCheapest ? 'text-green-700' : 'text-gray-900')}>
-                                    RM {priceEntry.price.toFixed(2)}
-                                    {isCheapest && <span className="ml-1 text-xs">★</span>}
-                                  </span>
-                                  <button
-                                    onClick={e => { e.stopPropagation(); clearPrice(item.id, s.id) }}
-                                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-gray-300 hover:text-red-400 transition-all"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </>
+                                <div>
+                                  <div className="flex items-center justify-center gap-1">
+                                    <span className={cn('font-medium', isCheapest ? 'text-green-700' : 'text-gray-900')}>
+                                      RM {priceEntry.price.toFixed(2)}
+                                      <span className="text-xs text-gray-400 font-normal">/{item.unit}</span>
+                                    </span>
+                                    <button
+                                      onClick={e => { e.stopPropagation(); clearPrice(item.id, s.id) }}
+                                      className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-gray-300 hover:text-red-400 transition-all"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  {/* Per-piece price for diapers */}
+                                  {isDiaper && pricePerPc !== null && (
+                                    <p className={cn('text-xs mt-0.5 font-semibold', isCheapest ? 'text-green-600' : 'text-gray-500')}>
+                                      {isCheapest && '★ '}RM {pricePerPc.toFixed(4)}/pc
+                                    </p>
+                                  )}
+                                </div>
                               ) : (
-                                <span className="text-gray-200 group-hover:text-gray-400 transition-colors text-xs flex items-center gap-1">
+                                <span className="text-gray-200 group-hover:text-gray-400 transition-colors text-xs flex items-center gap-1 justify-center">
                                   <Pencil className="w-3 h-3" /> Enter price
                                 </span>
                               )}
-                            </div>
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  )
-                }),
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  }),
+                ]),
               ]
             })}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-gray-400">★ = cheapest option for that product</p>
+      <p className="text-xs text-gray-400">★ = cheapest price per piece (diapers) or cheapest price (other items) among all suppliers</p>
     </div>
   )
 }
