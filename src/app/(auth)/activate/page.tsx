@@ -46,7 +46,7 @@ export default function ActivatePage() {
     }
 
     setDone(true)
-    setTimeout(() => { window.location.href = '/dashboard' }, 2000)
+    setTimeout(() => { window.location.replace('/dashboard') }, 1500)
   }
 
   if (!ready) {

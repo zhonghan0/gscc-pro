@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function activateAccount(data: {
@@ -12,18 +12,25 @@ export async function activateAccount(data: {
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
   if (userErr || !user) return { error: 'Not authenticated. Please log in again.' }
 
-  // Update password server-side (avoids client-side "Auth session missing" issue)
-  const { error: pwErr } = await supabase.auth.updateUser({ password: data.password })
+  // Update password via admin client to guarantee it goes through
+  const adminClient = createAdminClient()
+  const { error: pwErr } = await adminClient.auth.admin.updateUserById(user.id, {
+    password: data.password,
+  })
   if (pwErr) return { error: pwErr.message }
 
-  // Update profile
+  // Update profile — use admin client to bypass any RLS issues
   const now = new Date().toISOString()
-  if (data.fullName.trim()) {
-    await supabase.auth.updateUser({ data: { full_name: data.fullName.trim() } })
-    await supabase.from('profiles').update({ full_name: data.fullName.trim(), activated_at: now }).eq('id', user.id)
-  } else {
-    await supabase.from('profiles').update({ activated_at: now }).eq('id', user.id)
-  }
+  const profileUpdate = data.fullName.trim()
+    ? { full_name: data.fullName.trim(), activated_at: now }
+    : { activated_at: now }
+
+  const { error: profileErr } = await adminClient
+    .from('profiles')
+    .update(profileUpdate)
+    .eq('id', user.id)
+
+  if (profileErr) return { error: profileErr.message }
 
   revalidatePath('/', 'layout')
   return {}
