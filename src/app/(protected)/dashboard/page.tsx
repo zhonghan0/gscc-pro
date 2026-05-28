@@ -50,7 +50,7 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900">
             Welcome back, {profile?.full_name?.split(' ')[0] ?? 'there'} 👋
           </h2>
-          <p className="text-sm text-gray-500 capitalize">{profile?.role} · GSCC Care Centre</p>
+          <p className="text-sm text-gray-500 capitalize">{profile?.role} · Care Pro</p>
         </div>
 
         {/* Stats grid */}

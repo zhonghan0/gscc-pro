@@ -224,7 +224,7 @@ export function Sidebar() {
               <Heart className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="font-bold text-gray-900 text-sm leading-tight">GSCC Pro</p>
+              <p className="font-bold text-gray-900 text-sm leading-tight">Care Pro</p>
               <p className="text-xs text-gray-500">Care Centre</p>
             </div>
           </Link>

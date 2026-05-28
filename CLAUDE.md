@@ -1,7 +1,7 @@
 # Memory
 
 ## Project
-**GSCC Pro** — Care centre elderly management webapp (Malaysian context).
+**Care Pro** — Care centre elderly management webapp (Malaysian context).
 
 ## Stack
 Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui, Supabase (Postgres + RLS + Auth), Vercel.
