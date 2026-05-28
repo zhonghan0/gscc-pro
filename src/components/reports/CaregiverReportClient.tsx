@@ -95,9 +95,11 @@ function StatCard({
 export function CaregiverReportClient({
   workers,
   residents,
+  expiryUrgentDays = 30,
 }: {
   workers: Worker[]
   residents: Resident[]
+  expiryUrgentDays?: number
 }) {
   const CONDITION_ORDER: Record<string, number> = { mobile: 0, wheelchair_bound: 1, bedridden: 2 }
 
@@ -153,8 +155,8 @@ export function CaregiverReportClient({
   }, [workers])
 
   const expiredCount  = expiryAlerts.filter(a => a.days < 0).length
-  const urgentCount   = expiryAlerts.filter(a => a.days >= 0 && a.days <= 30).length
-  const warningCount  = expiryAlerts.filter(a => a.days > 30 && a.days <= 90).length
+  const urgentCount   = expiryAlerts.filter(a => a.days >= 0 && a.days <= expiryUrgentDays).length
+  const warningCount  = expiryAlerts.filter(a => a.days > expiryUrgentDays && a.days <= 90).length
 
   const caregivers   = workers.filter(w => w.worker_type === 'foreign')
   const localWorkers = workers.filter(w => w.worker_type === 'local')
@@ -188,7 +190,7 @@ export function CaregiverReportClient({
         <StatCard
           label="Expiring ≤ 90 days"
           value={urgentCount + warningCount}
-          sub={urgentCount > 0 ? `${urgentCount} within 30 days` : 'none urgent'}
+          sub={urgentCount > 0 ? `${urgentCount} within ${expiryUrgentDays} days` : 'none urgent'}
           icon={AlertTriangle}
           iconClass={(urgentCount + warningCount) > 0 ? 'bg-orange-50 text-orange-500' : 'bg-green-50 text-green-500'}
         />

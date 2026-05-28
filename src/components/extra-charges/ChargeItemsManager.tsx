@@ -51,7 +51,7 @@ interface ChargeItem {
   category: string | null
 }
 
-export function ChargeItemsManager({ items }: { items: ChargeItem[] }) {
+export function ChargeItemsManager({ items, defaultTransportItemPrice = 100 }: { items: ChargeItem[]; defaultTransportItemPrice?: number }) {
   const [localItems, setLocalItems] = useState(items)
   useEffect(() => { setLocalItems(items) }, [items])
 
@@ -244,7 +244,7 @@ export function ChargeItemsManager({ items }: { items: ChargeItem[] }) {
                             if (detected) {
                               setEditCategory(detected)
                               if (detected === 'Transportation' && (!editPrice || parseFloat(editPrice) === 0)) {
-                                setEditPrice('100')
+                                setEditPrice(String(defaultTransportItemPrice))
                               }
                             }
                           }}
@@ -314,7 +314,7 @@ export function ChargeItemsManager({ items }: { items: ChargeItem[] }) {
                       if (detected) {
                         setAddCategory(detected)
                         if (detected === 'Transportation' && (!addPrice || parseFloat(addPrice) === 0)) {
-                          setAddPrice('100')
+                          setAddPrice(String(defaultTransportItemPrice))
                         }
                       }
                     }}

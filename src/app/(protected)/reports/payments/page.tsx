@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { PaymentReportClient } from '@/components/reports/PaymentReportClient'
+import { getSettings } from '@/lib/settings'
 
 export default async function PaymentReportPage() {
   const supabase = createClient()
@@ -9,6 +10,7 @@ export default async function PaymentReportPage() {
     { data: residents },
     { data: payments },
     { data: extraCharges },
+    settings,
   ] = await Promise.all([
     supabase
       .from('residents')
@@ -21,6 +23,7 @@ export default async function PaymentReportPage() {
     supabase
       .from('extra_charges')
       .select('resident_id, billing_month, amount'),
+    getSettings(),
   ])
 
   return (
@@ -31,6 +34,7 @@ export default async function PaymentReportPage() {
           residents={residents ?? []}
           payments={payments ?? []}
           extraCharges={extraCharges ?? []}
+          reportMonths={settings.report_default_months}
         />
       </main>
     </>

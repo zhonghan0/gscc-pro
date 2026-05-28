@@ -25,6 +25,7 @@ import {
   ReceiptText,
   Car,
   BarChart2,
+  SlidersHorizontal,
 } from 'lucide-react'
 
 const residentsItems = [
@@ -46,9 +47,10 @@ const billingItems = [
 ]
 
 const othersItems = [
-  { href: '/admin/import',  label: 'Import Data', icon: FileUp },
-  { href: '/admin/export',  label: 'Export Data', icon: Download },
-  { href: '/admin/staff',   label: 'Users',       icon: Shield },
+  { href: '/admin/import',       label: 'Import Data',  icon: FileUp },
+  { href: '/admin/export',       label: 'Export Data',  icon: Download },
+  { href: '/admin/staff',        label: 'Users',        icon: Shield },
+  { href: '/admin/master-data',  label: 'Master Data',  icon: SlidersHorizontal, adminOnly: true },
 ]
 
 const reportItems = [

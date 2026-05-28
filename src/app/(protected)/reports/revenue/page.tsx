@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { RevenueReportClient } from '@/components/reports/RevenueReportClient'
+import { getSettings } from '@/lib/settings'
 
 export default async function RevenueReportPage() {
   const supabase = createClient()
@@ -10,6 +11,7 @@ export default async function RevenueReportPage() {
     { data: payments },
     { data: extraCharges },
     { data: chargeItems },
+    settings,
   ] = await Promise.all([
     supabase
       .from('residents')
@@ -27,6 +29,7 @@ export default async function RevenueReportPage() {
       .from('charge_items')
       .select('id, name, unit, category')
       .order('sort_order'),
+    getSettings(),
   ])
 
   return (
@@ -38,6 +41,9 @@ export default async function RevenueReportPage() {
           payments={payments ?? []}
           extraCharges={extraCharges ?? []}
           chargeItems={chargeItems ?? []}
+          reportMonths={settings.report_default_months}
+          paymentRateGreenThreshold={settings.payment_rate_green_threshold}
+          paymentRateYellowThreshold={settings.payment_rate_yellow_threshold}
         />
       </main>
     </>

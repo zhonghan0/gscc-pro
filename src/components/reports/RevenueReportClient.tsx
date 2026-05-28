@@ -159,15 +159,21 @@ export function RevenueReportClient({
   payments,
   extraCharges,
   chargeItems,
+  reportMonths = 12,
+  paymentRateGreenThreshold = 100,
+  paymentRateYellowThreshold = 70,
 }: {
   residents: Resident[]
   payments: Payment[]
   extraCharges: ExtraCharge[]
   chargeItems: ChargeItem[]
+  reportMonths?: number
+  paymentRateGreenThreshold?: number
+  paymentRateYellowThreshold?: number
 }) {
   const thisMonth = currentYM()
   const [selectedMonth, setSelectedMonth] = useState(thisMonth)
-  const months    = useMemo(() => lastNMonths(12), [])
+  const months    = useMemo(() => lastNMonths(reportMonths), [reportMonths])
 
   // Pre-build lookup maps
   const collectedByMonth = useMemo(() => {
@@ -498,8 +504,8 @@ export function RevenueReportClient({
                   <td className="px-5 py-3 text-right whitespace-nowrap">
                     <span className={cn(
                       'inline-block text-xs font-semibold px-2 py-0.5 rounded-full',
-                      row.rate >= 100 ? 'bg-green-100 text-green-700' :
-                      row.rate >= 70  ? 'bg-yellow-100 text-yellow-700' :
+                      row.rate >= paymentRateGreenThreshold  ? 'bg-green-100 text-green-700' :
+                      row.rate >= paymentRateYellowThreshold ? 'bg-yellow-100 text-yellow-700' :
                                         'bg-red-100 text-red-600',
                     )}>
                       {row.rate}%

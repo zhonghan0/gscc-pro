@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { CaregiverReportClient } from '@/components/reports/CaregiverReportClient'
+import { getSettings } from '@/lib/settings'
 
 export default async function CaregiverReportPage() {
   const supabase = createClient()
 
-  const [{ data: workers }, { data: residents }] = await Promise.all([
+  const [{ data: workers }, { data: residents }, settings] = await Promise.all([
     supabase
       .from('workers')
       .select('id, name, nickname, worker_type, status, passport_expiry, passport_permit_date, typhoid_vaccine_expiry, date_start_work')
@@ -15,6 +16,7 @@ export default async function CaregiverReportPage() {
       .from('residents')
       .select('id, full_name, caregiver_id, condition, status')
       .eq('status', 'active'),
+    getSettings(),
   ])
 
   return (
@@ -24,6 +26,7 @@ export default async function CaregiverReportPage() {
         <CaregiverReportClient
           workers={workers ?? []}
           residents={residents ?? []}
+          expiryUrgentDays={settings.expiry_urgent_days}
         />
       </main>
     </>

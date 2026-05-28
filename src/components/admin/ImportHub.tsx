@@ -67,7 +67,7 @@ const colorMap: Record<string, { active: string; icon: string; border: string }>
   rose:   { active: 'bg-rose-500 text-white shadow',   icon: 'text-rose-500',   border: 'border-rose-500' },
 }
 
-export function ImportHub({ positions }: { positions: Position[] }) {
+export function ImportHub({ positions, careLogPreviewChars = 80 }: { positions: Position[]; careLogPreviewChars?: number }) {
   const [active, setActive] = useState<Tab>('residents')
 
   return (
@@ -113,7 +113,7 @@ export function ImportHub({ positions }: { positions: Position[] }) {
         {active === 'local'            && <LocalWorkerImporter positions={positions} />}
         {active === 'payments'         && <PaymentExcelImporter />}
         {active === 'payments_detail'  && <PaymentDetailImporter />}
-        {active === 'care_logs'        && <CareLogImporter />}
+        {active === 'care_logs'        && <CareLogImporter previewChars={careLogPreviewChars} />}
       </div>
     </div>
   )

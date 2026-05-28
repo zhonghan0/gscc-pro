@@ -128,10 +128,12 @@ export function PaymentReportClient({
   residents,
   payments,
   extraCharges,
+  reportMonths = 12,
 }: {
   residents: Resident[]
   payments: Payment[]
   extraCharges: ExtraCharge[]
+  reportMonths?: number
 }) {
   const thisMonth = currentYM()
   const [selectedMonth, setSelectedMonth] = useState(thisMonth)
@@ -181,7 +183,7 @@ export function PaymentReportClient({
   const collectionRate = eligible.length === 0 ? 0 : Math.round((fullList.length / eligible.length) * 100)
 
   // ── Chart data: last 12 months ───────────────────────────────────────────
-  const chartMonths = useMemo(() => lastNMonths(12), [])
+  const chartMonths = useMemo(() => lastNMonths(reportMonths), [reportMonths])
   const chartData = useMemo(() => {
     return chartMonths.map(ym => {
       const elig = residents.filter(r => r.status === 'active' && isEligible(r, ym))

@@ -36,7 +36,7 @@ function downloadTemplate() {
   XLSX.writeFile(wb, 'CareLogs_Template.xlsx')
 }
 
-export function CareLogImporter() {
+export function CareLogImporter({ previewChars = 80 }: { previewChars?: number }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<PreviewRow[] | null>(null)
   const [fileName, setFileName] = useState('')
@@ -71,7 +71,7 @@ export function CareLogImporter() {
       else if (!date)  { status = 'warn'; message = 'Invalid date (use DD/MM/YYYY HH:MM)' }
       else if (!note)  { status = 'skip'; message = 'Empty note — will be skipped' }
 
-      return { resident, date, note: note.length > 80 ? note.slice(0, 80) + '…' : note, status, message }
+      return { resident, date, note: note.length > previewChars ? note.slice(0, previewChars) + '…' : note, status, message }
     })
 
     setPreview(parsed)

@@ -61,6 +61,7 @@ interface Props {
   transportationItems: TransportItem[]
   clinicBillsItemId: string | null
   residents: Resident[]
+  defaultTransportAmount: number
 }
 
 function fmtDate(d: string): string {
@@ -72,9 +73,7 @@ function fmtRM(n: number): string {
   return n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const DEFAULT_TRANSPORT = 70
-
-export function DriverPayoutDetail({ payout, trips: initialTrips, transportationItems, clinicBillsItemId, residents }: Props) {
+export function DriverPayoutDetail({ payout, trips: initialTrips, transportationItems, clinicBillsItemId, residents, defaultTransportAmount }: Props) {
   const router = useRouter()
   const printRef = useRef<HTMLDivElement>(null)
   const addDateRef = useRef<HTMLInputElement>(null)
@@ -110,7 +109,7 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
     return dates.length > 0 ? [...dates].sort().at(-1)! : ''
   })
   const [addDesc, setAddDesc] = useState('')
-  const [addTransport, setAddTransport] = useState(String(DEFAULT_TRANSPORT))
+  const [addTransport, setAddTransport] = useState(String(defaultTransportAmount))
   const [addBill, setAddBill] = useState('')
   const [addResidentSearch, setAddResidentSearch] = useState('')
   const [addResidentAmount, setAddResidentAmount] = useState('') // what to charge the resident
@@ -229,7 +228,7 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
         resident_name: addResident?.name ?? null,
       }])
       setAddDesc('')
-      setAddTransport(String(DEFAULT_TRANSPORT))
+      setAddTransport(String(defaultTransportAmount))
       setAddBill('')
       setAddResidentSearch('')
       setAddResidentAmount('')

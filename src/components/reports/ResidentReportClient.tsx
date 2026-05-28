@@ -89,8 +89,8 @@ function formatMonth(ym: string) {
   return new Date(Number(y), Number(m) - 1, 1).toLocaleString('en-MY', { month: 'short', year: '2-digit' })
 }
 
-export function ResidentReportClient({ residents }: { residents: Resident[] }) {
-  const [months] = useState(() => lastNMonths(12))
+export function ResidentReportClient({ residents, reportMonths = 12 }: { residents: Resident[]; reportMonths?: number }) {
+  const [months] = useState(() => lastNMonths(reportMonths))
 
   // ── Overview stats ──────────────────────────────────────────────────────
   const active = residents.filter(r => r.status === 'active')

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { DriverPayoutDetail } from '@/components/driver-payouts/DriverPayoutDetail'
+import { getSettings } from '@/lib/settings'
 
 interface Props {
   params: { id: string }
@@ -9,7 +10,7 @@ interface Props {
 export default async function DriverPayoutDetailPage({ params }: Props) {
   const supabase = createClient()
 
-  const [{ data: payout }, { data: trips }, { data: chargeItems }, { data: residents }] = await Promise.all([
+  const [{ data: payout }, { data: trips }, { data: chargeItems }, { data: residents }, settings] = await Promise.all([
     supabase
       .from('driver_payouts')
       .select('id, worker_id, notes, finalized')
@@ -31,6 +32,7 @@ export default async function DriverPayoutDetailPage({ params }: Props) {
       .select('id, full_name')
       .eq('status', 'active')
       .order('full_name'),
+    getSettings(),
   ])
 
   if (!payout) notFound()
@@ -72,6 +74,7 @@ export default async function DriverPayoutDetailPage({ params }: Props) {
       transportationItems={transportationItems}
       clinicBillsItemId={clinicBillsItemId}
       residents={(residents ?? []).map(r => ({ id: r.id, name: r.full_name }))}
+      defaultTransportAmount={settings.driver_transport_default}
     />
   )
 }

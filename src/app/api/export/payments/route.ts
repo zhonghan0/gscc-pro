@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getSettings } from '@/lib/settings'
 
 export async function GET() {
   const supabase = createClient()
@@ -10,8 +11,8 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const XLSX = require('xlsx') as typeof import('xlsx')
 
-  // Fetch residents and payments in parallel
-  const [{ data: residentsRaw }, { data: paymentsRaw }] = await Promise.all([
+  // Fetch residents, payments and settings in parallel
+  const [{ data: residentsRaw }, { data: paymentsRaw }, settings] = await Promise.all([
     supabase
       .from('residents')
       .select('id, full_name, fee')
@@ -20,15 +21,17 @@ export async function GET() {
       .from('payments')
       .select('resident_id, for_month, payment_date, payment_method')
       .order('payment_date', { ascending: true }),
+    getSettings(),
   ])
 
   const residents = residentsRaw ?? []
   const payments = paymentsRaw ?? []
 
-  // Build month range: last 24 months up to current month
+  // Build month range: configurable months up to current month
+  const exportMonths = settings.export_payments_months
   const monthRange: string[] = []
   const now = new Date()
-  for (let i = 23; i >= 0; i--) {
+  for (let i = exportMonths - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     monthRange.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }

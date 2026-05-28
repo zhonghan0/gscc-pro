@@ -37,6 +37,7 @@ interface Props {
   recentCharges: Charge[]
   isAdmin: boolean
   currentMonth: string
+  monthsShown?: number
 }
 
 function fmtDate(d: string): string {
@@ -68,7 +69,7 @@ function DeleteChargeBtn({ chargeId, residentId }: { chargeId: string; residentI
 }
 
 export function ExtraChargesSection({
-  residentId, residentFee, chargeItems, residentPrices, recentCharges, isAdmin, currentMonth
+  residentId, residentFee, chargeItems, residentPrices, recentCharges, isAdmin, currentMonth, monthsShown = 3
 }: Props) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [showCustomPrices, setShowCustomPrices] = useState(false)
@@ -123,7 +124,7 @@ export function ExtraChargesSection({
     arr.push(c)
     byMonth.set(c.billing_month, arr)
   }
-  const months = Array.from(byMonth.keys()).sort().reverse().slice(0, 3)
+  const months = Array.from(byMonth.keys()).sort().reverse().slice(0, monthsShown)
 
   return (
     <div className="space-y-4">
