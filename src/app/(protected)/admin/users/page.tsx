@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
 import { StaffTable } from '@/components/admin/StaffTable'
+import { RolePermissionsModal } from '@/components/admin/RolePermissionsModal'
 import { Button } from '@/components/ui/button'
 import { UserPlus } from 'lucide-react'
 import { isOwner } from '@/lib/permissions'
@@ -23,11 +24,14 @@ export default async function StaffPage() {
       <Header
         title="User Management"
         action={
-          <Link href="/admin/users/invite">
-            <Button size="sm">
-              <UserPlus className="w-4 h-4" /> Add User
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <RolePermissionsModal />
+            <Link href="/admin/users/invite">
+              <Button size="sm">
+                <UserPlus className="w-4 h-4" /> Add User
+              </Button>
+            </Link>
+          </div>
         }
       />
       <main className="flex-1 p-6 space-y-4">
