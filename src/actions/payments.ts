@@ -1,5 +1,6 @@
-import { canAccessBilling } from '@/lib/permissions'
 'use server'
+import { canAccessBilling } from '@/lib/permissions'
+
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
