@@ -10,31 +10,26 @@ import { Button } from '@/components/ui/button'
 
 export default function ActivatePage() {
   const router = useRouter()
-  const [fullName, setFullName]       = useState('')
-  const [password, setPassword]       = useState('')
-  const [confirm, setConfirm]         = useState('')
-  const [showPw, setShowPw]           = useState(false)
-  const [loading, setLoading]         = useState(false)
-  const [error, setError]             = useState('')
-  const [done, setDone]               = useState(false)
-  const [checking, setChecking]       = useState(true)
-  const [sessionOk, setSessionOk]     = useState(false)
+  const [fullName, setFullName] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm]   = useState('')
+  const [showPw, setShowPw]     = useState(false)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [done, setDone]         = useState(false)
+  const [ready, setReady]       = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        // Pre-fill name from metadata if available
-        const name = user.user_metadata?.full_name ?? ''
-        setFullName(name)
-        setSessionOk(true)
-      } else {
-        // No session — redirect to login
-        window.location.href = '/login'
+      if (!user) {
+        router.replace('/login')
+        return
       }
-      setChecking(false)
+      setFullName(user.user_metadata?.full_name ?? '')
+      setReady(true)
     })
-  }, [])
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -46,39 +41,25 @@ export default function ActivatePage() {
 
     const supabase = createClient()
 
-    // Update password
     const { error: pwErr } = await supabase.auth.updateUser({ password })
     if (pwErr) { setError(pwErr.message); setLoading(false); return }
 
-    // Update full name + mark as activated
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (fullName.trim()) {
       await supabase.auth.updateUser({ data: { full_name: fullName.trim() } })
-      await supabase.from('profiles').update({ full_name: fullName.trim(), activated_at: new Date().toISOString() }).eq('id', currentUser!.id)
+      await supabase.from('profiles').update({ full_name: fullName.trim(), activated_at: new Date().toISOString() }).eq('id', user!.id)
     } else {
-      await supabase.from('profiles').update({ activated_at: new Date().toISOString() }).eq('id', currentUser!.id)
+      await supabase.from('profiles').update({ activated_at: new Date().toISOString() }).eq('id', user!.id)
     }
 
     setDone(true)
     setTimeout(() => router.push('/dashboard'), 2000)
   }
 
-  if (checking) {
+  if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (!sessionOk) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full text-center space-y-4">
-          <p className="text-gray-700 font-medium">This activation link has expired or is invalid.</p>
-          <p className="text-sm text-gray-500">Please ask your admin to send a new invitation.</p>
-          <Button variant="outline" onClick={() => router.push('/login')}>Go to Login</Button>
-        </div>
       </div>
     )
   }
@@ -88,7 +69,7 @@ export default function ActivatePage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="text-center space-y-3">
           <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
-          <p className="font-semibold text-gray-900">Account activated!</p>
+          <p className="font-semibold text-gray-900">Password set!</p>
           <p className="text-sm text-gray-500">Redirecting to dashboard…</p>
         </div>
       </div>
@@ -98,7 +79,6 @@ export default function ActivatePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4">
             <Heart className="w-8 h-8 text-white" />
@@ -121,7 +101,7 @@ export default function ActivatePage() {
             </div>
 
             <div>
-              <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
+              <Label htmlFor="password">New Password <span className="text-red-500">*</span></Label>
               <div className="relative mt-1">
                 <Input
                   id="password"
@@ -163,7 +143,7 @@ export default function ActivatePage() {
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Activating…' : 'Activate Account'}
+              {loading ? 'Saving…' : 'Set Password'}
             </Button>
           </form>
         </div>
