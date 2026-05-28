@@ -66,6 +66,7 @@ export async function resendInvite(staffId: string) {
   const adminClient = createAdminClient()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
+  // Get the user's email and profile before deleting
   const { data: { user }, error: userErr } = await adminClient.auth.admin.getUserById(staffId)
   if (userErr || !user) throw new Error('User not found')
 
@@ -75,14 +76,18 @@ export async function resendInvite(staffId: string) {
     .eq('id', staffId)
     .single()
 
-  // Reset email confirmation so inviteUserByEmail won't reject an already-confirmed user
-  await adminClient.auth.admin.updateUserById(staffId, { email_confirm: false })
+  // Supabase rejects inviteUserByEmail if the email is already confirmed (even for
+  // unactivated users who clicked a broken link). The only reliable fix is to delete
+  // and re-invite — the handle_new_user trigger recreates the profile automatically.
+  await adminClient.auth.admin.deleteUser(staffId)
 
   const { error } = await adminClient.auth.admin.inviteUserByEmail(user.email!, {
     data: { full_name: profile?.full_name ?? '', role: profile?.role ?? 'care_staff' },
     redirectTo: `${siteUrl}/api/auth/callback?next=/activate`,
   })
   if (error) throw new Error(error.message)
+
+  revalidatePath('/admin/staff')
 }
 
 export async function deleteStaff(staffId: string) {
