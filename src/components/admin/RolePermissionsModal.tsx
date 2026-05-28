@@ -91,10 +91,10 @@ export function RolePermissionsModal() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-white border-b border-gray-200 z-10">
                   <tr>
-                    <th className="text-left px-6 py-3 font-medium text-gray-600 w-1/2">Feature</th>
+                    <th className="text-left px-6 py-3 font-medium text-gray-600">Feature</th>
                     {ROLES.map(role => (
-                      <th key={role} className="px-2 py-3 text-center w-[12.5%]">
-                        <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', ROLE_BADGE_CLASS[role])}>
+                      <th key={role} className="px-3 py-3 text-center">
+                        <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap inline-block', ROLE_BADGE_CLASS[role])}>
                           {ROLE_LABELS[role]}
                         </span>
                       </th>
