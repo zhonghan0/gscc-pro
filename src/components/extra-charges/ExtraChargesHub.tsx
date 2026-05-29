@@ -208,6 +208,20 @@ export function ExtraChargesHub({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingCharge])
 
+  // Scroll add panel into view and focus first input when it opens
+  useEffect(() => {
+    if (openPanel.type !== 'add' || !openPanel.id) return
+    const id = openPanel.id
+    setTimeout(() => {
+      const row = document.querySelector<HTMLElement>(`[data-add-panel="${id}"]`)
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        const firstInput = row.querySelector<HTMLElement>('input, select, textarea')
+        firstInput?.focus()
+      }
+    }, 50)
+  }, [openPanel])
+
   // ── Quick-add modal ──────────────────────────────────────────────────────────
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [qaResident, setQaResident] = useState<Resident | null>(null)
@@ -743,7 +757,7 @@ export function ExtraChargesHub({
 
                   {/* Add charge panel */}
                   {panel === 'add' && (
-                    <tr className="border-t border-blue-100 bg-blue-50/60">
+                    <tr className="border-t border-blue-100 bg-blue-50/60" data-add-panel={resident.id}>
                       <td colSpan={4} className="px-6 py-4">
                         <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">
                           Add Charge — {resident.full_name}
