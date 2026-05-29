@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useTransition } from 'react'
+import React, { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -181,6 +181,71 @@ export function ExtraChargesHub({
     setEditError('')
   }
 
+  // ── Quick-add modal ──────────────────────────────────────────────────────────
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [qaResident, setQaResident] = useState<Resident | null>(null)
+  const [qaSearch, setQaSearch] = useState('')
+  const [qaHighlight, setQaHighlight] = useState(0)
+  const qaSearchRef = useRef<HTMLInputElement>(null)
+  const qaListRef = useRef<HTMLUListElement>(null)
+
+  const qaFiltered = residents.filter(r =>
+    r.full_name.toLowerCase().includes(qaSearch.toLowerCase())
+  )
+
+  function openQuickAdd() {
+    setShowQuickAdd(true)
+    setQaResident(null)
+    setQaSearch('')
+    setQaHighlight(0)
+    // Focus search after paint
+    setTimeout(() => qaSearchRef.current?.focus(), 50)
+  }
+
+  function closeQuickAdd() {
+    setShowQuickAdd(false)
+    setQaResident(null)
+    setQaSearch('')
+    setQaHighlight(0)
+  }
+
+  function selectQaResident(r: Resident) {
+    setQaResident(r)
+    setQaSearch('')
+    setQaHighlight(0)
+  }
+
+  function handleQaSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setQaHighlight(h => Math.min(h + 1, qaFiltered.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setQaHighlight(h => Math.max(h - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (qaFiltered[qaHighlight]) selectQaResident(qaFiltered[qaHighlight])
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      closeQuickAdd()
+    }
+  }
+
+  // Keyboard shortcut: N → open quick-add
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault()
+        openQuickAdd()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Restore last-visited month
   useEffect(() => {
     if (!hasExplicitMonth) {
@@ -255,6 +320,120 @@ export function ExtraChargesHub({
 
   return (
     <div className="space-y-4">
+
+      {/* ── Quick-Add Charge Modal ─────────────────────────────────────────────── */}
+      {showQuickAdd && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4"
+          onClick={e => { if (e.target === e.currentTarget) closeQuickAdd() }}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" aria-hidden />
+
+          {/* Panel */}
+          <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4 text-blue-600" />
+                <h2 className="text-sm font-semibold text-gray-900">Add Charge</h2>
+              </div>
+              <button
+                onClick={closeQuickAdd}
+                className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              {/* Step 1: Resident picker */}
+              {!qaResident ? (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Select Resident</p>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <input
+                      ref={qaSearchRef}
+                      type="text"
+                      value={qaSearch}
+                      onChange={e => { setQaSearch(e.target.value); setQaHighlight(0) }}
+                      onKeyDown={handleQaSearchKey}
+                      placeholder="Type a name to search…"
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  {qaFiltered.length > 0 ? (
+                    <ul
+                      ref={qaListRef}
+                      className="mt-1 max-h-56 overflow-y-auto border border-gray-200 rounded-lg bg-white divide-y divide-gray-100 shadow-sm"
+                    >
+                      {qaFiltered.map((r, i) => (
+                        <li key={r.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectQaResident(r)}
+                            className={cn(
+                              'w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2',
+                              i === qaHighlight
+                                ? 'bg-blue-50 text-blue-800'
+                                : 'hover:bg-gray-50 text-gray-800'
+                            )}
+                          >
+                            <span className="flex-1 font-medium">{r.full_name}</span>
+                            {r.status === 'discharged' && (
+                              <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">Discharged</span>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : qaSearch ? (
+                    <p className="mt-2 text-sm text-gray-400 text-center py-2">No residents match &quot;{qaSearch}&quot;</p>
+                  ) : (
+                    <p className="mt-2 text-xs text-gray-400 text-center py-2">Start typing to filter residents</p>
+                  )}
+                  <p className="mt-3 text-xs text-gray-400 flex items-center gap-1">
+                    <kbd className="border border-gray-300 rounded px-1 py-0.5 font-mono text-[10px]">↑↓</kbd> navigate
+                    <span className="mx-1">·</span>
+                    <kbd className="border border-gray-300 rounded px-1 py-0.5 font-mono text-[10px]">Enter</kbd> select
+                    <span className="mx-1">·</span>
+                    <kbd className="border border-gray-300 rounded px-1 py-0.5 font-mono text-[10px]">Esc</kbd> close
+                  </p>
+                </div>
+              ) : (
+                /* Step 2: Charge form */
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQaResident(null)}
+                        className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        <ChevronLeft className="w-3 h-3" /> Change resident
+                      </button>
+                      <span className="text-gray-300">·</span>
+                      <span className="text-sm font-semibold text-gray-900">{qaResident.full_name}</span>
+                    </div>
+                  </div>
+                  <AddExtraChargeForm
+                    residentId={qaResident.id}
+                    chargeItems={chargeItems}
+                    residentPrices={residentPrices
+                      .filter(p => p.resident_id === qaResident.id)
+                      .map(p => ({ charge_item_id: p.charge_item_id, price: p.price }))}
+                    defaultBillingMonth={nextMonth(month)}
+                    onDone={() => { closeQuickAdd(); router.refresh() }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Month navigation + search + summary */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -311,6 +490,17 @@ export function ExtraChargesHub({
           >
             {hideEmpty ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             {hideEmpty ? `Billed only (${residentsWithCharges})` : 'Show all'}
+          </button>
+
+          {/* Global add charge button */}
+          <button
+            onClick={openQuickAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            title="Add Charge (N)"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Charge
+            <kbd className="ml-0.5 text-[10px] opacity-70 border border-white/40 rounded px-1 py-0.5 font-mono leading-none">N</kbd>
           </button>
         </div>
       </div>
