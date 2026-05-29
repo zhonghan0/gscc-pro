@@ -609,6 +609,8 @@ export function ExtraChargesHub({
                                   ? 'bg-yellow-100 border-yellow-300 text-yellow-800'
                                   : c.recurring_charge_id
                                   ? 'bg-orange-50 border-orange-100 text-orange-700'
+                                  : /bill/i.test(c.description)
+                                  ? 'bg-green-50 border-green-200 text-green-700'
                                   : 'bg-blue-50 border-blue-100 text-blue-700',
                                 isAdmin && 'cursor-pointer hover:ring-1 hover:ring-offset-1 hover:ring-blue-300'
                               )}
