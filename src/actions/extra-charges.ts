@@ -159,6 +159,26 @@ export async function updateExtraCharge(id: string, residentId: string, data: {
   revalidatePath('/residents')
 }
 
+/** Move ALL extra charges in fromMonth to toMonth (bulk) */
+export async function bulkMoveBillingMonth(fromMonth: string, toMonth: string): Promise<{ count: number }> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!canAccessBilling(profile?.role)) throw new Error('Unauthorized')
+
+  const { data, error } = await supabase
+    .from('extra_charges')
+    .update({ billing_month: toMonth })
+    .eq('billing_month', fromMonth)
+    .select('id')
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/extra-charges')
+  revalidatePath('/residents')
+  return { count: data?.length ?? 0 }
+}
+
 export async function deleteExtraCharge(id: string, residentId: string) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
