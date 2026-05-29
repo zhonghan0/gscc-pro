@@ -198,6 +198,16 @@ export function ExtraChargesHub({
     setEditError('')
   }
 
+  // Esc cancels editing
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && editingCharge) cancelEditCharge()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingCharge])
+
   // ── Quick-add modal ──────────────────────────────────────────────────────────
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [qaResident, setQaResident] = useState<Resident | null>(null)
@@ -844,10 +854,11 @@ export function ExtraChargesHub({
                             </button>
                             <button
                               onClick={cancelEditCharge}
-                              className="flex items-center justify-center w-7 h-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-100"
-                              title="Cancel"
+                              className="flex items-center gap-1 px-2 h-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-100 text-xs"
+                              title="Cancel (Esc)"
                             >
-                              <X className="w-3.5 h-3.5" />
+                              <X className="w-3 h-3" />
+                              <kbd className="text-[10px] text-gray-400 font-mono">Esc</kbd>
                             </button>
                           </div>
                         </div>
