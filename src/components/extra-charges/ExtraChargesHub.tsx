@@ -128,10 +128,9 @@ function shortDate(d: string | null): string {
   return `${parseInt(day)}/${parseInt(m)}`
 }
 
-/** Sort charges: Recurring → Transport → everything else → currently editing */
-function sortCharges(charges: Charge[], editingId: string | null): Charge[] {
+/** Sort charges: Recurring → Transport → everything else (editing item keeps its position) */
+function sortCharges(charges: Charge[]): Charge[] {
   const priority = (c: Charge): number => {
-    if (c.id === editingId) return 4
     if (c.recurring_charge_id) return 1
     if (/transport/i.test(c.description)) return 2
     return 3
@@ -560,7 +559,7 @@ export function ExtraChargesHub({
           <tbody>
             {visibleResidents.map(resident => {
               const resCharges = chargesByResident.get(resident.id) ?? []
-              const sortedCharges = sortCharges(resCharges, editingCharge?.id ?? null)
+              const sortedCharges = sortCharges(resCharges)
               const extrasTotal = resCharges.reduce((s, c) => s + c.amount, 0)
               const fee = resident.fee ?? 0
               const total = fee + extrasTotal
