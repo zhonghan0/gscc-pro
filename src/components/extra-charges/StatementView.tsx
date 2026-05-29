@@ -1,7 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import Link from 'next/link'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -65,6 +64,21 @@ export function StatementView({ resident, month, charges, currentMonth }: Props)
   const extrasTotal = charges.reduce((s, c) => s + c.amount, 0)
   const amountDue = fee + extrasTotal
 
+  const goBack = useCallback(() => router.back(), [router])
+
+  // Keyboard shortcuts: Esc → back, C → copy as image
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      // Don't fire when typing in an input / textarea
+      if (e.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return
+      if (e.key === 'Escape') goBack()
+      if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey) copyAsImage()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goBack, copying])
+
   // Billing date = 1st of the billing month
   const [y, m] = month.split('-')
   const billingDate = `01/${m}/${y}`
@@ -99,11 +113,14 @@ export function StatementView({ resident, month, charges, currentMonth }: Props)
       {/* Toolbar — not captured */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between no-print">
         <div className="flex items-center gap-3">
-          <Link href={`/residents/${resident.id}`}>
-            <button className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
-          </Link>
+          <button
+            onClick={goBack}
+            title="Go back (Esc)"
+            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back
+            <kbd className="ml-0.5 text-[10px] text-gray-400 border border-gray-200 rounded px-1 py-0.5 font-mono leading-none">Esc</kbd>
+          </button>
           <span className="text-gray-300">|</span>
           <span className="text-sm font-medium text-gray-700">{resident.full_name}</span>
         </div>
@@ -125,9 +142,12 @@ export function StatementView({ resident, month, charges, currentMonth }: Props)
           </button>
         </div>
 
-        <Button onClick={copyAsImage} disabled={copying} size="sm">
+        <Button onClick={copyAsImage} disabled={copying} size="sm" title="Copy as image (C)">
           <Camera className="w-4 h-4" />
           {copying ? 'Capturing…' : copied ? '✓ Copied!' : 'Copy as Image'}
+          {!copying && !copied && (
+            <kbd className="ml-1 text-[10px] opacity-60 border border-white/40 rounded px-1 py-0.5 font-mono leading-none">C</kbd>
+          )}
         </Button>
       </div>
 
