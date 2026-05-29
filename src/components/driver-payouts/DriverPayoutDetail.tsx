@@ -69,6 +69,14 @@ function fmtDate(d: string): string {
   return `${day}/${m}/${y}`
 }
 
+/** Derive the bill charge description from the trip description */
+function billDescription(tripDesc: string): string {
+  const lower = tripDesc.toLowerCase()
+  if (lower.includes('clinic')) return 'Clinic Bill'
+  if (lower.includes('hospital') || lower.includes('discharge') || lower.includes('ward')) return 'Hospital Bill'
+  return 'Bill'
+}
+
 function fmtRM(n: number): string {
   return n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -214,14 +222,14 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
             amount: residentChargeAmt,
           })
         }
-        // Bill extra charge (same amount — directly from clinic)
+        // Bill extra charge — name derived from trip description
         if (bill > 0) {
           await createExtraCharge({
             resident_id: addResident.id,
             charge_item_id: clinicBillsItemId,
             billing_month: billingMonth,
             charge_date: addDate || null,
-            description: addDesc.trim(),
+            description: billDescription(addDesc.trim()),
             amount: bill,
           })
         }
