@@ -44,4 +44,14 @@
     -moz-appearance: textfield;
     appearance: textfield;
   }
+  /* Opt-in class to re-enable spinners (used in driver payouts) */
+  input[type='number'].show-spin::-webkit-inner-spin-button,
+  input[type='number'].show-spin::-webkit-outer-spin-button {
+    -webkit-appearance: inner-spin-button;
+    opacity: 1;
+  }
+  input[type='number'].show-spin {
+    -moz-appearance: number-input;
+    appearance: auto;
+  }
 }

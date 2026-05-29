@@ -452,10 +452,10 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
                         </datalist>
                       </td>
                       <td className="px-2 py-1.5">
-                        <Input type="number" min="0" step="0.01" value={editTransport} onChange={e => setEditTransport(e.target.value)} className="h-7 text-xs w-20 ml-auto" />
+                        <Input type="number" min="0" step="10" value={editTransport} onChange={e => setEditTransport(e.target.value)} className="h-7 text-xs w-20 ml-auto show-spin" />
                       </td>
                       <td className="px-2 py-1.5">
-                        <Input type="number" min="0" step="0.01" value={editBill} onChange={e => setEditBill(e.target.value)} placeholder="0.00" className="h-7 text-xs w-20 ml-auto" />
+                        <Input type="number" min="0" step="10" value={editBill} onChange={e => setEditBill(e.target.value)} placeholder="0.00" className="h-7 text-xs w-20 ml-auto show-spin" />
                       </td>
                       <td className="no-screenshot px-2 py-1.5">
                         <div className="flex items-center gap-1">
@@ -606,11 +606,11 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
                                 <Input
                                   type="number"
                                   min="0"
-                                  step="0.01"
+                                  step="10"
                                   value={addResidentAmount}
                                   onChange={e => setAddResidentAmount(e.target.value)}
                                   placeholder="e.g. 120.00"
-                                  className={`h-8 text-sm w-32 ${!matchedTransportItem && !addResidentAmount ? 'border-amber-400 focus:ring-amber-400' : ''}`}
+                                  className={`h-8 text-sm w-32 show-spin ${!matchedTransportItem && !addResidentAmount ? 'border-amber-400 focus:ring-amber-400' : ''}`}
                                 />
                               </div>
                             )}
@@ -619,13 +619,13 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
                           {/* Transport */}
                           <div className="flex flex-col gap-0.5">
                             <label className="text-xs font-medium text-gray-600">Transport</label>
-                            <Input type="number" min="0" step="0.01" value={addTransport} onChange={e => setAddTransport(e.target.value)} className="h-8 text-sm w-24" />
+                            <Input type="number" min="0" step="10" value={addTransport} onChange={e => setAddTransport(e.target.value)} className="h-8 text-sm w-24 show-spin" />
                           </div>
 
                           {/* Bill */}
                           <div className="flex flex-col gap-0.5">
                             <label className="text-xs font-medium text-gray-600">Bill</label>
-                            <Input type="number" min="0" step="0.01" value={addBill} onChange={e => setAddBill(e.target.value)} placeholder="0.00" className="h-8 text-sm w-24" />
+                            <Input type="number" min="0" step="10" value={addBill} onChange={e => setAddBill(e.target.value)} placeholder="0.00" className="h-8 text-sm w-24 show-spin" />
                           </div>
 
                           {/* Action buttons */}
