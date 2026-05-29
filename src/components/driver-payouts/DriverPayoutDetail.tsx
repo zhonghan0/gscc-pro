@@ -527,7 +527,7 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
                 {editable && showAdd && (
                   <tr className="no-screenshot bg-blue-50 border-b border-blue-100">
                     <td colSpan={5} className="px-3 py-3">
-                      <form onSubmit={handleAddTrip}>
+                      <form onSubmit={handleAddTrip} noValidate>
                         <div className="flex items-start gap-2 flex-wrap">
                           {/* Date */}
                           <div className="flex flex-col gap-0.5">
