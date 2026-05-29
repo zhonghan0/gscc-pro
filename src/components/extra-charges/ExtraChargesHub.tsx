@@ -812,6 +812,7 @@ export function ExtraChargesHub({
                               onChange={e => setEditDate(e.target.value)}
                               className="h-7 text-xs w-32"
                               autoFocus
+                              onKeyDown={e => { if (e.key === 'Enter') saveEditCharge(); if (e.key === 'Escape') cancelEditCharge() }}
                             />
                           </div>
                           <div className="flex flex-col gap-0.5 flex-1 min-w-40">
@@ -841,6 +842,7 @@ export function ExtraChargesHub({
                               value={editMonth}
                               onChange={e => setEditMonth(e.target.value)}
                               className="h-7 text-xs w-32"
+                              onKeyDown={e => { if (e.key === 'Enter') saveEditCharge(); if (e.key === 'Escape') cancelEditCharge() }}
                             />
                           </div>
                           <div className="flex items-center gap-1 pb-0.5">
