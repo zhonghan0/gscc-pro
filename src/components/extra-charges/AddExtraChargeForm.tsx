@@ -35,6 +35,27 @@ function prevMonthFirstDay(billingMonth: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
 }
 
+/** Given a YYYY-MM-DD charge date, return the billing month (next month) as YYYY-MM */
+function nextMonthOf(dateStr: string): string {
+  if (!dateStr) return ''
+  const [y, m] = dateStr.split('-').map(Number)
+  const d = new Date(y, m, 1) // month is 0-indexed, so m = next month
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** Format YYYY-MM as "June 2026" */
+function formatBillingMonth(ym: string): string {
+  if (!ym) return ''
+  const [y, m] = ym.split('-').map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })
+}
+
+/** Format YYYY-MM-DD as "10 May 2026" */
+function formatChargeDate(d: string): string {
+  if (!d) return ''
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems, residentPrices, defaultBillingMonth, onDone }: Props) {
   const fmtLocal = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -51,6 +72,7 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
   const [quantity, setQuantity] = useState('1')
   const [chargeDate, setChargeDate] = useState(() => prevMonthFirstDay(defaultBillingMonth))
   const [billingMonth, setBillingMonth] = useState(defaultBillingMonth)
+  const [billingMonthManuallySet, setBillingMonthManuallySet] = useState(false)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -65,6 +87,19 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
   const [newItemPrice, setNewItemPrice] = useState('')
   const [newItemSaving, setNewItemSaving] = useState(false)
   const [newItemError, setNewItemError] = useState('')
+
+  function handleChargeDateChange(newDate: string) {
+    setChargeDate(newDate)
+    // Auto-set billing month to next month of the charge date, unless user has overridden it manually
+    if (!billingMonthManuallySet && newDate) {
+      setBillingMonth(nextMonthOf(newDate))
+    }
+  }
+
+  function handleBillingMonthChange(val: string) {
+    setBillingMonth(val)
+    setBillingMonthManuallySet(true)
+  }
 
   function handleItemChange(id: string) {
     if (id === '__new__') {
@@ -264,14 +299,14 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
         {/* Charge date */}
         <div>
           <Label htmlFor="charge_date">
-            Date <span className="text-gray-400 font-normal">(optional)</span>
+            Charge Date <span className="text-gray-400 font-normal">(when service happened)</span>
           </Label>
           <div className="relative">
             <Input
               id="charge_date"
               type="date"
               value={chargeDate}
-              onChange={e => setChargeDate(e.target.value)}
+              onChange={e => handleChargeDateChange(e.target.value)}
               className={chargeDate ? 'pr-8' : ''}
             />
             {chargeDate && (
@@ -288,17 +323,25 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
         </div>
       </div>
 
-      {/* Billing month */}
+      {/* Billing month — auto-advances to next month from charge date */}
       <div>
         <Label htmlFor="billing_month">Billing Month *</Label>
         <Input
           id="billing_month"
           type="month"
           value={billingMonth}
-          onChange={e => setBillingMonth(e.target.value)}
+          onChange={e => handleBillingMonthChange(e.target.value)}
           required
         />
-        <p className="mt-1 text-xs text-gray-400">Which month's statement this charge appears on.</p>
+        {chargeDate && billingMonth && (
+          <p className="mt-1 text-xs text-blue-600 font-medium">
+            ↗ Service on {formatChargeDate(chargeDate)} → billed on <strong>{formatBillingMonth(billingMonth)}</strong> statement
+            {!billingMonthManuallySet && <span className="text-gray-400 font-normal ml-1">(auto)</span>}
+          </p>
+        )}
+        {!chargeDate && (
+          <p className="mt-1 text-xs text-gray-400">Which month's statement this charge appears on.</p>
+        )}
       </div>
 
       {/* Notes */}
