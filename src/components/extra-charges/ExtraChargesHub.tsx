@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, ExternalLink,
-  Settings2, Eye, EyeOff, Repeat2, RefreshCw, Search, X, Check, Loader2,
+  Settings2, Repeat2, RefreshCw, Search, X, Check, Loader2,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { AddExtraChargeForm } from './AddExtraChargeForm'
@@ -146,7 +146,8 @@ export function ExtraChargesHub({
 }: Props) {
   const router = useRouter()
   const [openPanel, setOpenPanel] = useState<{ id: string; type: PanelType }>({ id: '', type: null })
-  const [hideEmpty, setHideEmpty] = useState(true)
+  type ChargeFilter = 'billed' | 'all' | 'recurring' | 'transport' | 'other'
+  const [chargeFilter, setChargeFilter] = useState<ChargeFilter>('billed')
   const [applyingAll, setApplyingAll] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -332,12 +333,16 @@ export function ExtraChargesHub({
 
   const q = search.trim().toLowerCase()
   const visibleResidents = residents.filter(r => {
-    if (hideEmpty && !chargesByResident.has(r.id)) return false
+    const resChargeList = chargesByResident.get(r.id) ?? []
+    // Charge type filter
+    if (chargeFilter === 'billed' && resChargeList.length === 0) return false
+    if (chargeFilter === 'recurring' && !resChargeList.some(c => c.recurring_charge_id)) return false
+    if (chargeFilter === 'transport' && !resChargeList.some(c => /transport/i.test(c.description))) return false
+    if (chargeFilter === 'other' && !resChargeList.some(c => !c.recurring_charge_id && !/transport/i.test(c.description))) return false
+    // Search filter
     if (!q) return true
     if (r.full_name.toLowerCase().includes(q)) return true
-    return (chargesByResident.get(r.id) ?? []).some(c =>
-      c.description.toLowerCase().includes(q)
-    )
+    return resChargeList.some(c => c.description.toLowerCase().includes(q))
   })
 
   function togglePanel(residentId: string, type: PanelType) {
@@ -520,18 +525,17 @@ export function ExtraChargesHub({
           <span>
             Total: <span className="font-semibold text-gray-900">RM {totalExtras.toFixed(2)}</span>
           </span>
-          <button
-            onClick={() => setHideEmpty(h => !h)}
-            className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors',
-              hideEmpty
-                ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
-                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-            )}
+          <select
+            value={chargeFilter}
+            onChange={e => setChargeFilter(e.target.value as ChargeFilter)}
+            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
-            {hideEmpty ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {hideEmpty ? `Billed only (${residentsWithCharges})` : 'Show all'}
-          </button>
+            <option value="billed">Billed only ({residentsWithCharges})</option>
+            <option value="all">Show all residents</option>
+            <option value="recurring">🔄 Recurring charges</option>
+            <option value="transport">🔵 Transport only</option>
+            <option value="other">🟢 Other bills only</option>
+          </select>
 
           {/* Global add charge button */}
           <button
@@ -897,7 +901,7 @@ export function ExtraChargesHub({
 
         {visibleResidents.length === 0 && (
           <div className="px-4 py-12 text-center text-sm text-gray-400">
-            {q ? `No results for "${search}".` : hideEmpty ? 'No residents have extra charges this month.' : 'No active residents found.'}
+            {q ? `No results for "${search}".` : chargeFilter === 'all' ? 'No active residents found.' : 'No residents match this filter.'}
           </div>
         )}
       </div>
