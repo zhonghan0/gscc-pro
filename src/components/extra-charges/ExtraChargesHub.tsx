@@ -95,7 +95,7 @@ function DeleteChargeBtn({ chargeId, residentId }: { chargeId: string; residentI
     return (
       <button
         onClick={(e) => { e.stopPropagation(); setConfirm(true) }}
-        className="ml-1 opacity-0 group-hover/chip:opacity-100 text-blue-400 hover:text-red-500 transition-all"
+        className="ml-1 opacity-0 group-hover/line:opacity-100 text-gray-300 hover:text-red-500 transition-all"
         title="Delete"
       >
         <Trash2 className="w-3 h-3" />
@@ -126,6 +126,17 @@ function shortDate(d: string | null): string {
   if (!d) return ''
   const [, m, day] = d.split('-')
   return `${parseInt(day)}/${parseInt(m)}`
+}
+
+/** Sort charges: Recurring → Transport → everything else → currently editing */
+function sortCharges(charges: Charge[], editingId: string | null): Charge[] {
+  const priority = (c: Charge): number => {
+    if (c.id === editingId) return 4
+    if (c.recurring_charge_id) return 1
+    if (/transport/i.test(c.description)) return 2
+    return 3
+  }
+  return [...charges].sort((a, b) => priority(a) - priority(b))
 }
 
 type PanelType = 'add' | 'custom' | 'recurring' | 'edit' | null
@@ -540,16 +551,16 @@ export function ExtraChargesHub({
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Resident</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">Base Fee</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Extra Charges This Month</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">Total</th>
-              <th className="px-4 py-3 w-32"></th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-40">Resident</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Charges This Month</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-32">Total</th>
+              <th className="px-4 py-3 w-28"></th>
             </tr>
           </thead>
           <tbody>
             {visibleResidents.map(resident => {
               const resCharges = chargesByResident.get(resident.id) ?? []
+              const sortedCharges = sortCharges(resCharges, editingCharge?.id ?? null)
               const extrasTotal = resCharges.reduce((s, c) => s + c.amount, 0)
               const fee = resident.fee ?? 0
               const total = fee + extrasTotal
@@ -568,76 +579,94 @@ export function ExtraChargesHub({
                     panel ? 'bg-gray-50/60' : 'hover:bg-gray-50'
                   )}>
                     {/* Resident name */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/residents/${resident.id}`}
-                          className={cn(
-                            'font-medium hover:text-blue-600 transition-colors',
-                            resident.status === 'discharged' ? 'text-gray-400' : 'text-gray-900'
-                          )}
-                        >
-                          {resident.full_name}
-                        </Link>
+                    <td className="px-4 py-3 align-top">
+                      <Link
+                        href={`/residents/${resident.id}`}
+                        className={cn(
+                          'font-medium hover:text-blue-600 transition-colors leading-snug block',
+                          resident.status === 'discharged' ? 'text-gray-400' : 'text-gray-900'
+                        )}
+                      >
+                        {resident.full_name}
+                      </Link>
+                      <div className="flex items-center gap-1.5 mt-0.5">
                         {resident.status === 'discharged' && (
                           <span className="text-xs bg-gray-100 text-gray-400 rounded-full px-2 py-0.5 font-medium">Discharged</span>
                         )}
-                        {/* Dot indicator for unapplied recurring */}
                         {hasUnapplied && (
-                          <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" title="Has unapplied recurring charges" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" title="Has unapplied recurring charges" />
                         )}
                       </div>
                     </td>
 
-                    {/* Base fee */}
-                    <td className="px-4 py-3 text-right text-sm text-gray-500 tabular-nums">
-                      RM {fee.toFixed(2)}
-                    </td>
-
-                    {/* Charge chips */}
-                    <td className="px-4 py-3">
-                      {resCharges.length === 0 ? (
+                    {/* Charges — line by line */}
+                    <td className="px-4 py-2.5">
+                      {sortedCharges.length === 0 ? (
                         <span className="text-xs text-gray-300 italic">None</span>
                       ) : (
-                        <div className="flex flex-wrap gap-1.5">
-                          {resCharges.map(c => (
-                            <span
-                              key={c.id}
-                              className={cn(
-                                'group/chip inline-flex items-center text-xs rounded-full px-2.5 py-0.5 border transition-colors',
-                                editingCharge?.id === c.id
-                                  ? 'bg-yellow-100 border-yellow-300 text-yellow-800'
-                                  : c.recurring_charge_id
-                                  ? 'bg-orange-50 border-orange-100 text-orange-700'
-                                  : /transport/i.test(c.description)
-                                  ? 'bg-blue-50 border-blue-100 text-blue-700'
-                                  : 'bg-green-50 border-green-200 text-green-700',
-                                isAdmin && 'cursor-pointer hover:ring-1 hover:ring-offset-1 hover:ring-blue-300'
-                              )}
-                              title={isAdmin ? 'Click to edit' : c.recurring_charge_id ? 'Recurring charge' : undefined}
-                              onClick={isAdmin ? () => openEditCharge(c) : undefined}
-                            >
-                              {c.recurring_charge_id && <Repeat2 className="w-2.5 h-2.5 mr-1 opacity-60" />}
-                              {c.charge_date && (
-                                <span className="mr-1.5 opacity-50 font-normal tabular-nums">{shortDate(c.charge_date)}</span>
-                              )}
-                              {c.description}
-                              <span className="mx-1 opacity-40">·</span>
-                              RM {Number(c.amount).toFixed(2)}
-                              {isAdmin && (
-                                <DeleteChargeBtn chargeId={c.id} residentId={resident.id} />
-                              )}
-                            </span>
-                          ))}
+                        <div className="divide-y divide-gray-50">
+                          {sortedCharges.map(c => {
+                            const isEditing = editingCharge?.id === c.id
+                            const isBill = !c.recurring_charge_id && !/transport/i.test(c.description)
+                            const isTransport = !c.recurring_charge_id && /transport/i.test(c.description)
+                            return (
+                              <div
+                                key={c.id}
+                                className={cn(
+                                  'group/line flex items-center gap-2 py-1',
+                                  isAdmin && 'cursor-pointer'
+                                )}
+                                onClick={isAdmin ? () => openEditCharge(c) : undefined}
+                                title={isAdmin ? 'Click to edit' : undefined}
+                              >
+                                {/* colour dot */}
+                                <span className={cn(
+                                  'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                                  isEditing ? 'bg-yellow-400'
+                                  : c.recurring_charge_id ? 'bg-orange-400'
+                                  : isTransport ? 'bg-blue-400'
+                                  : 'bg-green-400'
+                                )} />
+                                {/* date */}
+                                <span className="text-xs text-gray-400 w-8 flex-shrink-0 tabular-nums">
+                                  {shortDate(c.charge_date)}
+                                </span>
+                                {/* recurring icon */}
+                                {c.recurring_charge_id && <Repeat2 className="w-3 h-3 text-orange-400 flex-shrink-0" />}
+                                {/* description */}
+                                <span className={cn(
+                                  'flex-1 text-sm min-w-0',
+                                  isEditing ? 'text-yellow-700 font-medium'
+                                  : c.recurring_charge_id ? 'text-orange-700'
+                                  : isTransport ? 'text-blue-700'
+                                  : isBill ? 'text-green-700'
+                                  : 'text-gray-800'
+                                )}>
+                                  {c.description}
+                                </span>
+                                {/* amount */}
+                                <span className="text-sm tabular-nums text-gray-700 flex-shrink-0">
+                                  RM {Number(c.amount).toFixed(2)}
+                                </span>
+                                {/* delete */}
+                                {isAdmin && (
+                                  <span onClick={e => e.stopPropagation()}>
+                                    <DeleteChargeBtn chargeId={c.id} residentId={resident.id} />
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </td>
 
-                    {/* Total */}
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      <span className={cn('text-sm font-semibold', extrasTotal > 0 ? 'text-gray-900' : 'text-gray-500')}>
+                    {/* Total + base fee */}
+                    <td className="px-4 py-3 text-right align-top tabular-nums">
+                      <span className={cn('text-sm font-semibold block', extrasTotal > 0 ? 'text-gray-900' : 'text-gray-500')}>
                         RM {total.toFixed(2)}
                       </span>
+                      <span className="text-xs text-gray-400 mt-0.5 block">Base RM {fee.toFixed(2)}</span>
                     </td>
 
                     {/* Actions */}
@@ -706,7 +735,7 @@ export function ExtraChargesHub({
                   {/* Add charge panel */}
                   {panel === 'add' && (
                     <tr className="border-t border-blue-100 bg-blue-50/60">
-                      <td colSpan={5} className="px-6 py-4">
+                      <td colSpan={4} className="px-6 py-4">
                         <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">
                           Add Charge — {resident.full_name}
                         </p>
@@ -724,7 +753,7 @@ export function ExtraChargesHub({
                   {/* Custom prices panel */}
                   {panel === 'custom' && (
                     <tr className="border-t border-purple-100 bg-purple-50/40">
-                      <td colSpan={5} className="px-6 py-4">
+                      <td colSpan={4} className="px-6 py-4">
                         <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-3">
                           Custom Prices — {resident.full_name}
                         </p>
@@ -741,7 +770,7 @@ export function ExtraChargesHub({
                   {/* Recurring charges panel */}
                   {panel === 'recurring' && (
                     <tr className="border-t border-orange-100 bg-orange-50/30">
-                      <td colSpan={5} className="px-6 py-4">
+                      <td colSpan={4} className="px-6 py-4">
                         <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">
                           Recurring Charges — {resident.full_name}
                         </p>
@@ -761,7 +790,7 @@ export function ExtraChargesHub({
                   {/* Edit charge panel */}
                   {panel === 'edit' && editingCharge && editingCharge.resident_id === resident.id && (
                     <tr className="border-t border-yellow-200 bg-yellow-50/60">
-                      <td colSpan={5} className="px-6 py-4">
+                      <td colSpan={4} className="px-6 py-4">
                         <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide mb-3">
                           Edit Charge — {editingCharge.description}
                         </p>
