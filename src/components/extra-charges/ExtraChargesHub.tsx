@@ -263,7 +263,7 @@ export function ExtraChargesHub({
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === 'n' || e.key === 'N') {
+      if (e.key === 'a' || e.key === 'A') {
         e.preventDefault()
         openQuickAdd()
       }
@@ -527,7 +527,7 @@ export function ExtraChargesHub({
           >
             <Plus className="w-3.5 h-3.5" />
             Add Charge
-            <kbd className="ml-0.5 text-[10px] opacity-70 border border-white/40 rounded px-1 py-0.5 font-mono leading-none">N</kbd>
+            <kbd className="ml-0.5 text-[10px] opacity-70 border border-white/40 rounded px-1 py-0.5 font-mono leading-none">A</kbd>
           </button>
         </div>
       </div>
