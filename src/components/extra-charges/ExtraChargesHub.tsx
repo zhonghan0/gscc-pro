@@ -121,6 +121,13 @@ function DeleteChargeBtn({ chargeId, residentId }: { chargeId: string; residentI
 
 const STORAGE_KEY = 'extraChargesMonth'
 
+/** Format YYYY-MM-DD → "12/5" (day/month, no leading zeros) */
+function shortDate(d: string | null): string {
+  if (!d) return ''
+  const [, m, day] = d.split('-')
+  return `${parseInt(day)}/${parseInt(m)}`
+}
+
 type PanelType = 'add' | 'custom' | 'recurring' | 'edit' | null
 
 export function ExtraChargesHub({
@@ -609,6 +616,9 @@ export function ExtraChargesHub({
                               onClick={isAdmin ? () => openEditCharge(c) : undefined}
                             >
                               {c.recurring_charge_id && <Repeat2 className="w-2.5 h-2.5 mr-1 opacity-60" />}
+                              {c.charge_date && (
+                                <span className="mr-1.5 opacity-50 font-normal tabular-nums">{shortDate(c.charge_date)}</span>
+                              )}
                               {c.description}
                               <span className="mx-1 opacity-40">·</span>
                               RM {Number(c.amount).toFixed(2)}
