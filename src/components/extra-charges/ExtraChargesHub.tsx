@@ -136,7 +136,7 @@ export function ExtraChargesHub({
 }: Props) {
   const router = useRouter()
   const [openPanel, setOpenPanel] = useState<{ id: string; type: PanelType }>({ id: '', type: null })
-  const [hideEmpty, setHideEmpty] = useState(false)
+  const [hideEmpty, setHideEmpty] = useState(true)
   const [applyingAll, setApplyingAll] = useState(false)
   const [search, setSearch] = useState('')
 
