@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, ExternalLink,
-  Settings2, Repeat2, RefreshCw, Search, X, Check, Loader2,
+  Settings2, Repeat2, RefreshCw, Search, X, Check, Loader2, Clock,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { AddExtraChargeForm } from './AddExtraChargeForm'
@@ -336,7 +336,7 @@ export function ExtraChargesHub({
     const resChargeList = chargesByResident.get(r.id) ?? []
     // Charge type filter
     if (chargeFilter === 'billed' && resChargeList.length === 0) return false
-    if (chargeFilter === 'recurring' && !resChargeList.some(c => c.recurring_charge_id)) return false
+    if (chargeFilter === 'recurring' && !(recurringByResident.get(r.id) ?? []).some(rc => rc.active)) return false
     if (chargeFilter === 'transport' && !resChargeList.some(c => /transport/i.test(c.description))) return false
     if (chargeFilter === 'other' && !resChargeList.some(c => !c.recurring_charge_id && !/transport/i.test(c.description))) return false
     // Search filter
@@ -588,6 +588,12 @@ export function ExtraChargesHub({
             {visibleResidents.map(resident => {
               const resCharges = chargesByResident.get(resident.id) ?? []
               const sortedCharges = sortCharges(resCharges)
+              // Filter displayed charges based on active filter
+              const displayedCharges = chargeFilter === 'transport'
+                ? sortedCharges.filter(c => /transport/i.test(c.description))
+                : chargeFilter === 'other'
+                ? sortedCharges.filter(c => !c.recurring_charge_id && !/transport/i.test(c.description))
+                : sortedCharges
               const extrasTotal = resCharges.reduce((s, c) => s + c.amount, 0)
               const fee = resident.fee ?? 0
               const total = fee + extrasTotal
@@ -635,11 +641,11 @@ export function ExtraChargesHub({
 
                     {/* Charges — line by line */}
                     <td className="px-4 py-2.5">
-                      {sortedCharges.length === 0 ? (
+                      {displayedCharges.length === 0 && chargeFilter !== 'recurring' ? (
                         <span className="text-xs text-gray-300 italic">None</span>
                       ) : (
                         <div className="divide-y divide-gray-50">
-                          {sortedCharges.map(c => {
+                          {displayedCharges.map((c) => {
                             const isEditing = editingCharge?.id === c.id
                             const isBill = !c.recurring_charge_id && !/transport/i.test(c.description)
                             const isTransport = !c.recurring_charge_id && /transport/i.test(c.description)
@@ -691,6 +697,17 @@ export function ExtraChargesHub({
                               </div>
                             )
                           })}
+                          {/* Unapplied recurring definitions (shown in recurring filter) */}
+                          {chargeFilter === 'recurring' && resRecurring
+                            .filter(rc => rc.active && !appliedRecurringIds.has(rc.id))
+                            .map(rc => (
+                              <div key={rc.id} className="flex items-center gap-2 py-1 opacity-70">
+                                <Clock className="w-3 h-3 text-orange-400 flex-shrink-0" />
+                                <span className="flex-1 text-sm text-orange-500 italic">{rc.description} — not applied</span>
+                                <span className="text-sm tabular-nums text-gray-400">RM {Number(rc.amount).toFixed(2)}</span>
+                              </div>
+                            ))
+                          }
                         </div>
                       )}
                     </td>
