@@ -348,63 +348,62 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
         )}
       </div>
 
-      {/* ── Amount + Qty ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Amount (RM) *</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="amount"
-              type="number"
-              min="0.01"
-              step="0.01"
-              placeholder="0.00"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              className="flex-1"
-            />
-            <span className="text-gray-400 text-sm flex-shrink-0">×</span>
-            <Input
-              id="quantity"
-              type="number"
-              min="1"
-              step="1"
-              value={quantity}
-              onChange={e => setQuantity(e.target.value)}
-              className="w-16 flex-shrink-0"
-            />
-            {qty > 1 && (
-              <span className="text-sm font-semibold text-gray-700 flex-shrink-0 whitespace-nowrap">
-                = RM {finalAmount.toFixed(2)}
-              </span>
-            )}
-          </div>
+      {/* ── Amount + Qty  /  Charge Date ─────────────────────────────────────── */}
+      {/* Labels in row 1, inputs in row 2 — keeps inputs at the same height  */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        {/* Labels row */}
+        <Label>Amount (RM) *</Label>
+        <Label htmlFor="charge_date">
+          Charge Date <span className="text-gray-400 font-normal">(when service happened)</span>
+        </Label>
+
+        {/* Inputs row */}
+        <div className="flex items-center gap-2">
+          <Input
+            id="amount"
+            type="number"
+            min="0.01"
+            step="0.01"
+            placeholder="0.00"
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            className="flex-1"
+          />
+          <span className="text-gray-400 text-sm flex-shrink-0">×</span>
+          <Input
+            id="quantity"
+            type="number"
+            min="1"
+            step="1"
+            value={quantity}
+            onChange={e => setQuantity(e.target.value)}
+            className="w-16 flex-shrink-0"
+          />
+          {qty > 1 && (
+            <span className="text-sm font-semibold text-gray-700 flex-shrink-0 whitespace-nowrap">
+              = RM {finalAmount.toFixed(2)}
+            </span>
+          )}
         </div>
 
-        {/* Charge date */}
-        <div>
-          <Label htmlFor="charge_date">
-            Charge Date <span className="text-gray-400 font-normal">(when service happened)</span>
-          </Label>
-          <div className="relative">
-            <Input
-              id="charge_date"
-              type="date"
-              value={chargeDate}
-              onChange={e => handleChargeDateChange(e.target.value)}
-              className={chargeDate ? 'pr-8' : ''}
-            />
-            {chargeDate && (
-              <button
-                type="button"
-                onClick={() => setChargeDate('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                title="Clear date"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+        <div className="relative">
+          <Input
+            id="charge_date"
+            type="date"
+            value={chargeDate}
+            onChange={e => handleChargeDateChange(e.target.value)}
+            className={chargeDate ? 'pr-8' : ''}
+          />
+          {chargeDate && (
+            <button
+              type="button"
+              onClick={() => setChargeDate('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              title="Clear date"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
