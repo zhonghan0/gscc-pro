@@ -134,7 +134,14 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
   // ── Other form fields ────────────────────────────────────────────────────────
   const [amount, setAmount] = useState('')
   const [quantity, setQuantity] = useState('1')
-  const [chargeDate, setChargeDate] = useState(() => prevMonthFirstDay(defaultBillingMonth))
+  const [chargeDate, setChargeDate] = useState(() => {
+    // Restore last-used charge date; fall back to 1st of previous billing month
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lastChargeDate')
+      if (saved) return saved
+    }
+    return prevMonthFirstDay(defaultBillingMonth)
+  })
   const [billingMonth, setBillingMonth] = useState(defaultBillingMonth)
   const [billingMonthManuallySet, setBillingMonthManuallySet] = useState(false)
   const [notes, setNotes] = useState('')
@@ -208,6 +215,8 @@ export function AddExtraChargeForm({ residentId, chargeItems: initialChargeItems
         quantity: qty,
         notes: notes.trim() || undefined,
       })
+      // Remember the date for next time
+      if (chargeDate) localStorage.setItem('lastChargeDate', chargeDate)
       onDone()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
