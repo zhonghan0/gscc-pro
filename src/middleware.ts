@@ -1,7 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const REMEMBER_ME_COOKIE = 'care-pro-rm'
+const REMEMBER_ME_SECONDS = 24 * 60 * 60
+
 export async function middleware(request: NextRequest) {
+  const rememberMe = request.cookies.has(REMEMBER_ME_COOKIE)
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -17,9 +22,15 @@ export async function middleware(request: NextRequest) {
             request.cookies.set(name, value)
           )
           supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+          cookiesToSet.forEach(({ name, value, options }) => {
+            // If remember-me is active, keep the auth cookie alive for 24h
+            // so it doesn't shrink back to 1h after every token refresh.
+            const finalOptions =
+              rememberMe && name.startsWith('sb-') && name.endsWith('-auth-token')
+                ? { ...options, maxAge: REMEMBER_ME_SECONDS }
+                : options
+            supabaseResponse.cookies.set(name, value, finalOptions)
+          })
         },
       },
     }
@@ -35,7 +46,6 @@ export async function middleware(request: NextRequest) {
   if (!user && !isAuthPage && !isAuthApi && !isActivate) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    // Copy session cookies from supabaseResponse to the redirect
     const redirectResponse = NextResponse.redirect(url)
     supabaseResponse.cookies.getAll().forEach(cookie => {
       redirectResponse.cookies.set(cookie.name, cookie.value)
@@ -46,7 +56,6 @@ export async function middleware(request: NextRequest) {
   if (user && isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
-    // Copy session cookies from supabaseResponse to the redirect
     const redirectResponse = NextResponse.redirect(url)
     supabaseResponse.cookies.getAll().forEach(cookie => {
       redirectResponse.cookies.set(cookie.name, cookie.value)

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const REMEMBER_ME_SECONDS = 24 * 60 * 60   // 24 hours
+const REMEMBER_ME_COOKIE = 'care-pro-rm'
+
 export async function POST(request: NextRequest) {
-  const { email, password } = await request.json()
+  const { email, password, rememberMe } = await request.json()
 
   // Call Supabase Auth API directly
   const res = await fetch(
@@ -29,7 +32,6 @@ export async function POST(request: NextRequest) {
   const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]
   const cookieName = `sb-${projectRef}-auth-token`
 
-  // Store session as a JSON cookie (same format Supabase SSR expects)
   const sessionPayload = JSON.stringify({
     access_token,
     refresh_token,
@@ -39,12 +41,33 @@ export async function POST(request: NextRequest) {
     user: session.user,
   })
 
+  const cookieMaxAge = rememberMe ? REMEMBER_ME_SECONDS : expires_in
+
   response.cookies.set(cookieName, sessionPayload, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: expires_in,
+    maxAge: cookieMaxAge,
   })
+
+  // Set (or clear) the remember-me flag cookie so the middleware can extend
+  // the auth cookie on every token refresh for the full 24-hour window.
+  if (rememberMe) {
+    response.cookies.set(REMEMBER_ME_COOKIE, '1', {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: REMEMBER_ME_SECONDS,
+    })
+  } else {
+    // Ensure any stale flag is cleared
+    response.cookies.set(REMEMBER_ME_COOKIE, '', {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    })
+  }
 
   return response
 }

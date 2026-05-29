@@ -5,6 +5,7 @@ import { useState } from 'react'
 export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -18,7 +19,7 @@ export default function LoginPage() {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, rememberMe }),
     })
 
     const data = await res.json()
@@ -27,7 +28,6 @@ export default function LoginPage() {
       setError(data.error || 'Login failed')
       setLoading(false)
     } else {
-      // Hard redirect so the browser sends the new session cookie
       window.location.href = '/dashboard'
     }
   }
@@ -74,6 +74,28 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </div>
+
+            {/* Remember me */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="sr-only"
+                />
+                <div className={`w-4.5 h-4.5 w-[18px] h-[18px] rounded border-2 flex items-center justify-center transition-colors ${
+                  rememberMe ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'
+                }`}>
+                  {rememberMe && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <span className="text-sm text-gray-600">Remember me for 24 hours</span>
+            </label>
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
