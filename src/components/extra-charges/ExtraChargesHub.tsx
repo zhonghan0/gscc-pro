@@ -6,13 +6,12 @@ import Link from 'next/link'
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, ExternalLink,
   Settings2, Eye, EyeOff, Repeat2, RefreshCw, Search, X, Check, Loader2,
-  ArrowRight,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { AddExtraChargeForm } from './AddExtraChargeForm'
 import { ResidentCustomPrices } from './ResidentCustomPrices'
 import { ResidentRecurringCharges } from './ResidentRecurringCharges'
-import { deleteExtraCharge, updateExtraCharge, bulkMoveBillingMonth } from '@/actions/extra-charges'
+import { deleteExtraCharge, updateExtraCharge } from '@/actions/extra-charges'
 import { applyAllRecurringCharges } from '@/actions/recurring-charges'
 import { cn } from '@/lib/utils'
 
@@ -253,25 +252,6 @@ export function ExtraChargesHub({
     }
   }
 
-  const [movingCharges, setMovingCharges] = useState(false)
-  const toMonth = nextMonth(month)
-
-  async function handleBulkMove() {
-    const chargeCount = charges.length
-    if (chargeCount === 0) return
-    const toLabel = new Date(parseInt(toMonth.split('-')[0]), parseInt(toMonth.split('-')[1]) - 1, 1)
-      .toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })
-    const fromLabel = fmtMonth(month)
-    if (!confirm(`Move all ${chargeCount} charge${chargeCount !== 1 ? 's' : ''} from ${fromLabel} to ${toLabel} bill?\n\nThis affects all residents in this month.`)) return
-    setMovingCharges(true)
-    try {
-      await bulkMoveBillingMonth(month, toMonth)
-      router.push(`/extra-charges?month=${toMonth}`)
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error moving charges')
-      setMovingCharges(false)
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -354,28 +334,6 @@ export function ExtraChargesHub({
           >
             <RefreshCw className={cn('w-3.5 h-3.5', applyingAll && 'animate-spin')} />
             {applyingAll ? 'Applying…' : 'Apply All'}
-          </button>
-        </div>
-      )}
-
-      {/* Bulk move to next month banner — shown when there are charges in this month */}
-      {isAdmin && charges.length > 0 && (
-        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-          <div className="flex items-center gap-2 text-sm">
-            <ArrowRight className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <span className="text-blue-800">
-              <span className="font-semibold">{charges.length}</span>
-              {' '}charge{charges.length !== 1 ? 's' : ''} in <span className="font-semibold">{fmtMonth(month)}</span> bill.
-              {' '}Move all to <span className="font-semibold">{fmtMonth(toMonth)}</span>?
-            </span>
-          </div>
-          <button
-            onClick={handleBulkMove}
-            disabled={movingCharges}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors ml-4 flex-shrink-0"
-          >
-            <ArrowRight className={cn('w-3.5 h-3.5', movingCharges && 'animate-pulse')} />
-            {movingCharges ? 'Moving…' : `Move all to ${fmtMonth(toMonth)}`}
           </button>
         </div>
       )}
@@ -554,7 +512,7 @@ export function ExtraChargesHub({
                           residentId={resident.id}
                           chargeItems={chargeItems}
                           residentPrices={residentPricesFiltered}
-                          defaultBillingMonth={month}
+                          defaultBillingMonth={nextMonth(month)}
                           onDone={() => { setOpenPanel({ id: '', type: null }); router.refresh() }}
                         />
                       </td>

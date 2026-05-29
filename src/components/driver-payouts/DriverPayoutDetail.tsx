@@ -195,7 +195,13 @@ export function DriverPayoutDetail({ payout, trips: initialTrips, transportation
 
       // Sync to extra charges if checkbox is on and a resident is matched
       if (willSync && addResident) {
-        const billingMonth = addDate ? addDate.substring(0, 7) : new Date().toISOString().substring(0, 7)
+        // Billing month = next month after the trip date (charges from May are billed in June)
+        const billingMonth = (() => {
+          const base = addDate ? addDate.substring(0, 7) : new Date().toISOString().substring(0, 7)
+          const [y, m] = base.split('-').map(Number)
+          const d = new Date(y, m, 1) // month is 0-indexed, so m = next month
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        })()
         const residentChargeAmt = parseFloat(addResidentAmount) || 0
         // Transport extra charge — use resident charge amount (from charge item price), not driver payout amount
         if (residentChargeAmt > 0) {
