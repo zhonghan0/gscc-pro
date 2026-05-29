@@ -610,7 +610,14 @@ export function ExtraChargesHub({
                           resident.status === 'discharged' ? 'text-gray-400' : 'text-gray-900'
                         )}
                       >
-                        {resident.full_name}
+                        {resident.full_name.includes('@') ? (
+                          <>
+                            {resident.full_name.split('@')[0].trim()}
+                            <span className="block text-xs font-normal text-gray-400">
+                              @ {resident.full_name.split('@').slice(1).join('@').trim()}
+                            </span>
+                          </>
+                        ) : resident.full_name}
                       </Link>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {resident.status === 'discharged' && (
